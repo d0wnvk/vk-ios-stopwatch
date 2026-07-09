@@ -12,14 +12,18 @@ import UIKit
 import CoreHaptics
 
 struct ContentView: View {
+    @EnvironmentObject private var navigation: AppNavigation
+
     var body: some View {
-        TabView {
+        TabView(selection: $navigation.selectedTab) {
             StopwatchScreen()
+                .tag(AppTab.stopwatch)
                 .tabItem {
                     Label("Stopwatch", systemImage: "stopwatch")
                 }
 
             SecondScreen()
+                .tag(AppTab.second)
                 .tabItem {
                     Label("Second", systemImage: "square.grid.2x2")
                 }
@@ -71,8 +75,10 @@ struct StopwatchScreen: View {
                         Text(formattedTime(lap))
                             .fontDesign(.monospaced)
                     }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                 }
             }
+            .environment(\.defaultMinListRowHeight, 28)
             .scrollContentBackground(.hidden)
         }
         .padding()
@@ -136,10 +142,12 @@ struct StopwatchScreen: View {
 }
 
 struct SecondScreen: View {
+    @EnvironmentObject private var navigation: AppNavigation
     @State private var elapsedTime: TimeInterval = 0
     @State private var cycleStartDate: Date?
     @State private var restartLog: [String] = []
     @State private var hapticEngine: CHHapticEngine?
+    @State private var handledLaunchToken: UUID?
 
     private let repeatingTimer = Timer.publish(every: 0.01, on: .main, in: .common).autoconnect()
     private let feedbackGenerator = UIImpactFeedbackGenerator(style: .heavy)
@@ -191,6 +199,10 @@ struct SecondScreen: View {
         }
         .onAppear {
             prepareHaptics()
+            handlePendingLaunch()
+        }
+        .onChange(of: navigation.secondScreenLaunchToken) {
+            handlePendingLaunch()
         }
         .onReceive(repeatingTimer) { now in
             guard let cycleStartDate else { return }
@@ -219,6 +231,15 @@ struct SecondScreen: View {
     private func stopRepeatingTimer() {
         cycleStartDate = nil
         restartLog.insert("Stopped", at: 0)
+    }
+
+    private func handlePendingLaunch() {
+        guard let launchToken = navigation.secondScreenLaunchToken else { return }
+        guard handledLaunchToken != launchToken else { return }
+        handledLaunchToken = launchToken
+
+        guard cycleStartDate == nil else { return }
+        startRepeatingTimer()
     }
 
     private func triggerResetHaptics() {
