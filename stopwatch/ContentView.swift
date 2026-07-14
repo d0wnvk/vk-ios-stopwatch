@@ -153,12 +153,13 @@ struct SecondScreen: View {
                     .font(.system(size: 72, weight: .semibold, design: .monospaced))
                     .foregroundStyle(.white)
 
-                HStack(spacing: 16) {
+                HStack(spacing: 12) {
                     Button(action: startRepeatingTimer) {
                         Text(cycleStartDate == nil ? "Start Timer" : "Restart Timer")
                             .font(.headline)
                             .foregroundStyle(.white)
-                            .frame(width: 180, height: 56)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 56)
                             .background(Color.orange)
                             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
@@ -167,11 +168,27 @@ struct SecondScreen: View {
                         Text("Stop")
                             .font(.headline)
                             .foregroundStyle(.white)
-                            .frame(width: 100, height: 56)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 56)
                             .background(cycleStartDate == nil ? Color.gray.opacity(0.35) : Color.red)
                             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
                     .disabled(cycleStartDate == nil)
+
+                    Button(action: resetRepeatingTimer) {
+                        Text("Reset")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 56)
+                            .background(
+                                cycleStartDate == nil && elapsedTime == 0
+                                    ? Color.gray.opacity(0.35)
+                                    : Color.gray
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    }
+                    .disabled(cycleStartDate == nil && elapsedTime == 0)
                 }
 
                 List {
@@ -219,6 +236,12 @@ struct SecondScreen: View {
     private func stopRepeatingTimer() {
         cycleStartDate = nil
         restartLog.insert("Stopped", at: 0)
+    }
+
+    private func resetRepeatingTimer() {
+        cycleStartDate = nil
+        elapsedTime = 0
+        restartLog.insert("Reset", at: 0)
     }
 
     private func triggerResetHaptics() {
