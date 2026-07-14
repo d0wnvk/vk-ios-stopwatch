@@ -241,7 +241,7 @@ struct SecondScreen: View {
     private func resetRepeatingTimer() {
         cycleStartDate = nil
         elapsedTime = 0
-        restartLog.insert("Reset", at: 0)
+        restartLog.removeAll()
     }
 
     private func triggerResetHaptics() {
