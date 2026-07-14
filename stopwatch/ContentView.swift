@@ -12,18 +12,14 @@ import UIKit
 import CoreHaptics
 
 struct ContentView: View {
-    @EnvironmentObject private var navigation: AppNavigation
-
     var body: some View {
-        TabView(selection: $navigation.selectedTab) {
+        TabView {
             StopwatchScreen()
-                .tag(AppTab.stopwatch)
                 .tabItem {
                     Label("Stopwatch", systemImage: "stopwatch")
                 }
 
             SecondScreen()
-                .tag(AppTab.second)
                 .tabItem {
                     Label("Second", systemImage: "square.grid.2x2")
                 }
@@ -75,10 +71,8 @@ struct StopwatchScreen: View {
                         Text(formattedTime(lap))
                             .fontDesign(.monospaced)
                     }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                 }
             }
-            .environment(\.defaultMinListRowHeight, 28)
             .scrollContentBackground(.hidden)
         }
         .padding()
@@ -142,12 +136,10 @@ struct StopwatchScreen: View {
 }
 
 struct SecondScreen: View {
-    @EnvironmentObject private var navigation: AppNavigation
     @State private var elapsedTime: TimeInterval = 0
     @State private var cycleStartDate: Date?
     @State private var restartLog: [String] = []
     @State private var hapticEngine: CHHapticEngine?
-    @State private var handledLaunchToken: UUID?
 
     private let repeatingTimer = Timer.publish(every: 0.01, on: .main, in: .common).autoconnect()
     private let feedbackGenerator = UIImpactFeedbackGenerator(style: .heavy)
@@ -161,12 +153,13 @@ struct SecondScreen: View {
                     .font(.system(size: 72, weight: .semibold, design: .monospaced))
                     .foregroundStyle(.white)
 
-                HStack(spacing: 16) {
+                HStack(spacing: 12) {
                     Button(action: startRepeatingTimer) {
                         Text(cycleStartDate == nil ? "Start Timer" : "Restart Timer")
                             .font(.headline)
                             .foregroundStyle(.white)
-                            .frame(width: 180, height: 56)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 56)
                             .background(Color.orange)
                             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
@@ -175,11 +168,27 @@ struct SecondScreen: View {
                         Text("Stop")
                             .font(.headline)
                             .foregroundStyle(.white)
-                            .frame(width: 100, height: 56)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 56)
                             .background(cycleStartDate == nil ? Color.gray.opacity(0.35) : Color.red)
                             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
                     .disabled(cycleStartDate == nil)
+
+                    Button(action: resetRepeatingTimer) {
+                        Text("Reset")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 56)
+                            .background(
+                                cycleStartDate == nil && elapsedTime == 0
+                                    ? Color.gray.opacity(0.35)
+                                    : Color.gray
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    }
+                    .disabled(cycleStartDate == nil && elapsedTime == 0)
                 }
 
                 List {
@@ -199,10 +208,6 @@ struct SecondScreen: View {
         }
         .onAppear {
             prepareHaptics()
-            handlePendingLaunch()
-        }
-        .onChange(of: navigation.secondScreenLaunchToken) {
-            handlePendingLaunch()
         }
         .onReceive(repeatingTimer) { now in
             guard let cycleStartDate else { return }
@@ -233,13 +238,10 @@ struct SecondScreen: View {
         restartLog.insert("Stopped", at: 0)
     }
 
-    private func handlePendingLaunch() {
-        guard let launchToken = navigation.secondScreenLaunchToken else { return }
-        guard handledLaunchToken != launchToken else { return }
-        handledLaunchToken = launchToken
-
-        guard cycleStartDate == nil else { return }
-        startRepeatingTimer()
+    private func resetRepeatingTimer() {
+        cycleStartDate = nil
+        elapsedTime = 0
+        restartLog.removeAll()
     }
 
     private func triggerResetHaptics() {
