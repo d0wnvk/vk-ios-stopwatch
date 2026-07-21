@@ -23,6 +23,199 @@ struct ContentView: View {
                 .tabItem {
                     Label("Second", systemImage: "square.grid.2x2")
                 }
+
+            ThirdScreen()
+                .tabItem {
+                    Label("Third", systemImage: "terminal")
+                }
+        }
+    }
+}
+
+struct ThirdScreen: View {
+    @State private var rightNumbers = Array(repeating: 0, count: 36)
+    @State private var timerStartDate: Date?
+
+    private let backgroundColor = Color(red: 0.27, green: 0.27, blue: 0.25)
+
+    var body: some View {
+        GeometryReader { geometry in
+            let standardRowHeight = geometry.size.height / 6.75
+
+            Grid(horizontalSpacing: 0, verticalSpacing: 0) {
+                ForEach(0..<9, id: \.self) { row in
+                    GridRow {
+                        ForEach(0..<4, id: \.self) { column in
+                            let cellNumber = row * 4 + column + 1
+
+                            ZStack {
+                                cellContent(for: cellNumber)
+
+                                if cellNumber == 1 {
+                                    Button("Reset", action: resetAll)
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundStyle(.red)
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                        .buttonStyle(.plain)
+                                }
+
+                                if cellNumber == 6 {
+                                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                                        Text(timerText(at: context.date))
+                                            .font(.system(size: 28, weight: .bold, design: .monospaced))
+                                            .foregroundStyle(.yellow)
+                                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    }
+                                }
+
+                                if row != 0 && row != 1 && row != 5 {
+                                    Text(String(rightNumbers[cellNumber - 1]))
+                                        .font(.system(size: 16, weight: .bold, design: .monospaced))
+                                        .foregroundStyle(
+                                            rightNumbers[cellNumber - 1] > 0
+                                                ? Color(red: 0.45, green: 0.9, blue: 1.0)
+                                                : Color.white
+                                        )
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                                        .padding(4)
+
+                                    HStack(spacing: 4) {
+                                        counterButton("+") {
+                                            timerStartDate = Date()
+                                            rightNumbers[cellNumber - 1] += 1
+                                        }
+
+                                        counterButton("−") {
+                                            guard rightNumbers[cellNumber - 1] > 0 else { return }
+                                            rightNumbers[cellNumber - 1] -= 1
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                                    .padding(.bottom, 3)
+                                }
+                            }
+                                .frame(maxWidth: .infinity)
+                                .frame(width: column == 0 ? firstColumnWidth : nil)
+                                .frame(height: row == 0 || row == 1 || row == 5 ? standardRowHeight / 4 : standardRowHeight)
+                                .background(columnColor(for: column, row: row))
+                                .overlay {
+                                    Rectangle()
+                                        .stroke(Color.white, lineWidth: 1)
+                                }
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(backgroundColor)
+        .foregroundStyle(.white)
+    }
+
+    private func counterButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 13, weight: .bold))
+                .frame(maxWidth: .infinity)
+                .frame(height: 23.66)
+                .background(Color.black.opacity(0.3))
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func timerText(at date: Date) -> String {
+        guard let timerStartDate else { return "00:00" }
+
+        let elapsedSeconds = max(0, Int(date.timeIntervalSince(timerStartDate)))
+        return String(format: "%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60)
+    }
+
+    private func resetAll() {
+        rightNumbers = Array(repeating: 0, count: rightNumbers.count)
+        timerStartDate = nil
+    }
+
+    private var firstColumnWidth: CGFloat {
+        let labels = ["Reset", "спина", "бицепс", "ноги", "грудь", "трицепс"]
+        let labelFont = UIFont.preferredFont(forTextStyle: .title2)
+
+        return ceil(labels.map {
+            ($0 as NSString).size(withAttributes: [.font: labelFont]).width
+        }.max() ?? 0)
+    }
+
+    @ViewBuilder
+    private func cellContent(for number: Int) -> some View {
+        if let label = [
+            10: "подтягивания",
+            11: "сверху под 45гр",
+            14: "молотковый хват",
+            15: "сидя снизу-вверх",
+            18: "развод",
+            19: "свод",
+            26: "вверх",
+            30: "вверх",
+            34: "вперед",
+        ][number] {
+            ZStack(alignment: .topLeading) {
+                VStack(spacing: -7) {
+                    ForEach(labelLines(for: number, label: label), id: \.self) { line in
+                        Text(line)
+                            .font(.title2)
+                            .lineLimit(1)
+                    }
+                }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                Text(String(number))
+                    .font(.system(size: 8, design: .monospaced))
+                    .padding(4)
+            }
+        } else {
+            Text(cellLabel(for: number))
+                .font(.title2.monospacedDigit())
+        }
+    }
+
+    private func labelLines(for number: Int, label: String) -> [String] {
+        switch number {
+        case 10: return ["подтяги-", "вания"]
+        case 11: return ["сверху", "под 45гр"]
+        case 14: return ["молотко-", "вый хват"]
+        case 15: return ["сидя снизу-", "вверх"]
+        default: return [label]
+        }
+    }
+
+    private func columnColor(for column: Int, row: Int) -> Color {
+        guard row != 0, row != 1, row != 5 else {
+            return backgroundColor
+        }
+
+        switch column {
+        case 1: return Color(red: 0.48, green: 0.29, blue: 0.00)
+        case 2: return Color(red: 0.48, green: 0.00, blue: 0.29)
+        case 3: return Color(red: 0.08, green: 0.27, blue: 0.08)
+        default: return backgroundColor
+        }
+    }
+
+    private func cellLabel(for number: Int) -> String {
+        switch number {
+        case 1: ""
+        case 2: "Up"
+        case 3: "Middle"
+        case 4: "Down"
+        case 5...8, 21...24: ""
+        case 9: "спина"
+        case 13: "бицепс"
+        case 17: "ноги"
+        case 25: "грудь"
+        case 29: "трицепс"
+        case 33: "ноги"
+        default: String(number)
         }
     }
 }
