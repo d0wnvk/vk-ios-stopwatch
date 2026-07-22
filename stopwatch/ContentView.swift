@@ -12,19 +12,24 @@ import UIKit
 import CoreHaptics
 
 struct ContentView: View {
+    @State private var selectedTab = 2
+
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             StopwatchScreen()
+                .tag(0)
                 .tabItem {
                     Label("Stopwatch", systemImage: "stopwatch")
                 }
 
             SecondScreen()
+                .tag(1)
                 .tabItem {
                     Label("Second", systemImage: "square.grid.2x2")
                 }
 
             ThirdScreen()
+                .tag(2)
                 .tabItem {
                     Label("Third", systemImage: "terminal")
                 }
@@ -35,8 +40,18 @@ struct ContentView: View {
 struct ThirdScreen: View {
     @State private var rightNumbers = Array(repeating: 0, count: 36)
     @State private var timerStartDate: Date?
+    @State private var flashingCells: [Int: UUID] = [:]
+    @State private var lastCellTapDates: [Int: Date] = [:]
 
     private let backgroundColor = Color(red: 0.27, green: 0.27, blue: 0.25)
+    private let tappableCellNumbers: Set<Int> = [
+        10, 11, 12,
+        14, 15, 16,
+        18, 19, 20,
+        26, 27, 28,
+        30, 31, 32,
+        34, 35, 36,
+    ]
 
     var body: some View {
         GeometryReader { geometry in
@@ -49,7 +64,31 @@ struct ThirdScreen: View {
                             let cellNumber = row * 4 + column + 1
 
                             ZStack {
+                                if tappableCellNumbers.contains(cellNumber) {
+                                    Button {
+                                        incrementCounter(for: cellNumber)
+                                    } label: {
+                                        Color.clear
+                                            .background(
+                                                flashingCells[cellNumber] != nil
+                                                    ? Color(red: 0.45, green: 0.9, blue: 1.0).opacity(0.3)
+                                                    : Color.clear
+                                            )
+                                            .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+
                                 cellContent(for: cellNumber)
+                                    .allowsHitTesting(false)
+
+                                if row != 0 && row != 1 && row != 5 {
+                                    Text(String(cellNumber))
+                                        .font(.system(size: 8, design: .monospaced))
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                                        .padding(4)
+                                        .allowsHitTesting(false)
+                                }
 
                                 if cellNumber == 1 {
                                     Button("Reset", action: resetAll)
@@ -69,20 +108,28 @@ struct ThirdScreen: View {
                                 }
 
                                 if row != 0 && row != 1 && row != 5 {
-                                    Text(String(rightNumbers[cellNumber - 1]))
-                                        .font(.system(size: 16, weight: .bold, design: .monospaced))
-                                        .foregroundStyle(
-                                            rightNumbers[cellNumber - 1] > 0
-                                                ? Color(red: 0.45, green: 0.9, blue: 1.0)
-                                                : Color.white
-                                        )
-                                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                                        .padding(4)
+                                    if column != 0 {
+                                        Text(String(rightNumbers[cellNumber - 1]))
+                                            .font(.system(size: 24, weight: .bold, design: .monospaced))
+                                            .foregroundStyle(
+                                                rightNumbers[cellNumber - 1] > 0
+                                                    ? Color(red: 0.45, green: 0.9, blue: 1.0)
+                                                    : Color.white
+                                            )
+                                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                                            .padding(4)
+                                            .allowsHitTesting(false)
+                                    }
 
                                     HStack(spacing: 4) {
-                                        counterButton("+") {
-                                            timerStartDate = Date()
-                                            rightNumbers[cellNumber - 1] += 1
+                                        if !tappableCellNumbers.contains(cellNumber) {
+                                            counterButton("+") {
+                                                incrementCounter(for: cellNumber)
+                                            }
+                                        } else {
+                                            Color.clear
+                                                .frame(maxWidth: .infinity)
+                                                .frame(height: 23.66)
                                         }
 
                                         counterButton("−") {
@@ -97,6 +144,15 @@ struct ThirdScreen: View {
                                 .frame(maxWidth: .infinity)
                                 .frame(width: column == 0 ? firstColumnWidth : nil)
                                 .frame(height: row == 0 || row == 1 || row == 5 ? standardRowHeight / 4 : standardRowHeight)
+                                .scaleEffect(
+                                    tappableCellNumbers.contains(cellNumber) && flashingCells[cellNumber] != nil
+                                        ? 0.96
+                                        : 1
+                                )
+                                .animation(
+                                    .spring(response: 0.18, dampingFraction: 0.6),
+                                    value: flashingCells[cellNumber]
+                                )
                                 .background(columnColor(for: column, row: row))
                                 .overlay {
                                     Rectangle()
@@ -135,6 +191,34 @@ struct ThirdScreen: View {
     private func resetAll() {
         rightNumbers = Array(repeating: 0, count: rightNumbers.count)
         timerStartDate = nil
+        flashingCells.removeAll()
+        lastCellTapDates.removeAll()
+    }
+
+    private func incrementCounter(for cellNumber: Int) {
+        let now = Date()
+
+        if tappableCellNumbers.contains(cellNumber) {
+            if let lastTapDate = lastCellTapDates[cellNumber],
+               now.timeIntervalSince(lastTapDate) < 1 {
+                return
+            }
+
+            lastCellTapDates[cellNumber] = now
+        }
+
+        timerStartDate = now
+        rightNumbers[cellNumber - 1] += 1
+
+        if tappableCellNumbers.contains(cellNumber) {
+            let flashID = UUID()
+            flashingCells[cellNumber] = flashID
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                guard flashingCells[cellNumber] == flashID else { return }
+                flashingCells[cellNumber] = nil
+            }
+        }
     }
 
     private var firstColumnWidth: CGFloat {
@@ -159,20 +243,14 @@ struct ThirdScreen: View {
             30: "вверх",
             34: "вперед",
         ][number] {
-            ZStack(alignment: .topLeading) {
-                VStack(spacing: -7) {
-                    ForEach(labelLines(for: number, label: label), id: \.self) { line in
-                        Text(line)
-                            .font(.title2)
-                            .lineLimit(1)
-                    }
+            VStack(spacing: -7) {
+                ForEach(labelLines(for: number, label: label), id: \.self) { line in
+                    Text(line)
+                        .font(.title2)
+                        .lineLimit(1)
                 }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                Text(String(number))
-                    .font(.system(size: 8, design: .monospaced))
-                    .padding(4)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             Text(cellLabel(for: number))
                 .font(.title2.monospacedDigit())
@@ -215,7 +293,7 @@ struct ThirdScreen: View {
         case 25: "грудь"
         case 29: "трицепс"
         case 33: "ноги"
-        default: String(number)
+        default: ""
         }
     }
 }
