@@ -38,7 +38,7 @@ struct ContentView: View {
 }
 
 struct ThirdScreen: View {
-    @State private var rightNumbers = Array(repeating: 0, count: 36)
+    @State private var rightNumbers = Array(repeating: 0, count: 44)
     @State private var timerStartDate: Date?
     @State private var flashingCells: [Int: UUID] = [:]
     @State private var lastCellTapDates: [Int: Date] = [:]
@@ -48,17 +48,17 @@ struct ThirdScreen: View {
         10, 11, 12,
         14, 15, 16,
         18, 19, 20,
-        26, 27, 28,
         30, 31, 32,
         34, 35, 36,
+        38, 39, 40,
     ]
 
     var body: some View {
         GeometryReader { geometry in
-            let standardRowHeight = geometry.size.height / 6.75
+            let standardRowHeight = geometry.size.height / 8.75
 
             Grid(horizontalSpacing: 0, verticalSpacing: 0) {
-                ForEach(0..<9, id: \.self) { row in
+                ForEach(0..<11, id: \.self) { row in
                     GridRow {
                         ForEach(0..<4, id: \.self) { column in
                             let cellNumber = row * 4 + column + 1
@@ -82,7 +82,7 @@ struct ThirdScreen: View {
                                 cellContent(for: cellNumber)
                                     .allowsHitTesting(false)
 
-                                if row != 0 && row != 1 && row != 5 {
+                                if row != 0 && row != 1 && row != 6 {
                                     Text(String(cellNumber))
                                         .font(.system(size: 8, design: .monospaced))
                                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -107,7 +107,7 @@ struct ThirdScreen: View {
                                     }
                                 }
 
-                                if row != 0 && row != 1 && row != 5 {
+                                if row != 0 && row != 1 && row != 6 {
                                     if column != 0 {
                                         Text(String(rightNumbers[cellNumber - 1]))
                                             .font(.system(size: 24, weight: .bold, design: .monospaced))
@@ -143,7 +143,7 @@ struct ThirdScreen: View {
                             }
                                 .frame(maxWidth: .infinity)
                                 .frame(width: column == 0 ? firstColumnWidth : nil)
-                                .frame(height: row == 0 || row == 1 || row == 5 ? standardRowHeight / 4 : standardRowHeight)
+                                .frame(height: row == 0 || row == 1 || row == 6 ? standardRowHeight / 4 : standardRowHeight)
                                 .scaleEffect(
                                     tappableCellNumbers.contains(cellNumber) && flashingCells[cellNumber] != nil
                                         ? 0.96
@@ -239,9 +239,9 @@ struct ThirdScreen: View {
             15: "сидя снизу-вверх",
             18: "развод",
             19: "свод",
-            26: "вверх",
             30: "вверх",
-            34: "вперед",
+            34: "вверх",
+            38: "вперед",
         ][number] {
             VStack(spacing: -7) {
                 ForEach(labelLines(for: number, label: label), id: \.self) { line in
@@ -268,7 +268,7 @@ struct ThirdScreen: View {
     }
 
     private func columnColor(for column: Int, row: Int) -> Color {
-        guard row != 0, row != 1, row != 5 else {
+        guard row != 0, row != 1, row != 6 else {
             return backgroundColor
         }
 
@@ -286,13 +286,13 @@ struct ThirdScreen: View {
         case 2: "Up"
         case 3: "Middle"
         case 4: "Down"
-        case 5...8, 21...24: ""
+        case 5...8, 25...28: ""
         case 9: "спина"
         case 13: "бицепс"
         case 17: "ноги"
-        case 25: "грудь"
-        case 29: "трицепс"
-        case 33: "ноги"
+        case 29: "грудь"
+        case 33: "трицепс"
+        case 37: "ноги"
         default: ""
         }
     }
