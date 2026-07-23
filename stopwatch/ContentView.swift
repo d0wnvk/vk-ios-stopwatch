@@ -38,7 +38,7 @@ struct ContentView: View {
 }
 
 struct ThirdScreen: View {
-    @State private var rightNumbers = Array(repeating: 0, count: 44)
+    @State private var rightNumbers = Array(repeating: 0, count: 48)
     @State private var timerStartDate: Date?
     @State private var independentTimerStartDate: Date?
     @State private var flashingCells: [Int: UUID] = [:]
@@ -58,10 +58,10 @@ struct ThirdScreen: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let standardRowHeight = geometry.size.height / 9.0825
+            let standardRowHeight = geometry.size.height / 9.3725
 
             Grid(horizontalSpacing: 0, verticalSpacing: 0) {
-                ForEach(0..<11, id: \.self) { row in
+                ForEach(0..<12, id: \.self) { row in
                     GridRow {
                         ForEach(0..<4, id: \.self) { column in
                             let cellNumber = row * 4 + column + 1
@@ -101,7 +101,7 @@ struct ThirdScreen: View {
                                         .allowsHitTesting(false)
                                 }
 
-                                if row != 0 && row != 1 && row != 6 {
+                                if row != 0 && row != 1 && row != 6 && row != 11 {
                                     Text(String(cellNumber))
                                         .font(.system(size: 8, design: .monospaced))
                                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -135,7 +135,7 @@ struct ThirdScreen: View {
                                     }
                                 }
 
-                                if row != 0 && row != 1 && row != 6 {
+                                if row != 0 && row != 1 && row != 6 && row != 11 {
                                     if column != 0 {
                                         Text(String(rightNumbers[cellNumber - 1]))
                                             .font(.system(size: 24, weight: .bold, design: .monospaced))
@@ -144,7 +144,7 @@ struct ThirdScreen: View {
                                                     ? Color(red: 1.0, green: 0.95, blue: 0.05)
                                                     : Color.blue
                                             )
-                                            .opacity(rightNumbers[cellNumber - 1] > 0 ? 1 : 0.65)
+                                            .opacity(rightNumbers[cellNumber - 1] > 0 ? 1 : 0)
                                             .shadow(
                                                 color: rightNumbers[cellNumber - 1] > 0
                                                     ? Color.yellow.opacity(0.9)
@@ -188,11 +188,9 @@ struct ThirdScreen: View {
                                 .frame(maxWidth: .infinity)
                                 .frame(width: column == 0 ? firstColumnWidth : nil)
                                 .frame(
-                                    height: row == 0
-                                        ? standardRowHeight / 4
-                                        : row == 1
+                                    height: row == 1
                                             ? standardRowHeight * 9 / 16
-                                        : row == 6
+                                        : row == 0 || row == 6 || row == 11
                                             ? standardRowHeight * 27 / 100
                                             : standardRowHeight
                                 )
@@ -237,7 +235,7 @@ struct ThirdScreen: View {
                 .font(.system(size: 13, weight: .bold))
                 .frame(maxWidth: .infinity)
                 .frame(height: 23.66)
-                .background(Color.black.opacity(title == "−" ? 0.216 : 0.3))
+                .background(Color.black.opacity(title == "−" ? 0.1728 : 0.3))
                 .clipShape(RoundedRectangle(cornerRadius: 4))
         }
         .buttonStyle(.plain)
@@ -342,7 +340,7 @@ struct ThirdScreen: View {
                     Text(line)
                         .font(
                             number == 31 || number == 35
-                                ? .system(size: 15.4)
+                                ? .system(size: 18.634)
                                 : number == 12 || number == 15
                                     ? .system(size: 21.28896)
                                     : .title2
@@ -365,15 +363,15 @@ struct ThirdScreen: View {
         case 14: return ["молотко-", "вый хват"]
         case 15: return ["сидя", "снизу-", "вверх"]
         case 20: return ["плечи", "вверх"]
-        case 31: return ["сводящие,", "не", "толкающие"]
+        case 31: return ["сводящие,", "не тол-", "кающие"]
         case 32: return ["отжим на", "брусьях"]
-        case 35: return ["из положения", "лежа на", "спине"]
+        case 35: return ["из положе-", "ния лежа", "на спине"]
         default: return [label]
         }
     }
 
     private func columnColor(for column: Int, row: Int) -> Color {
-        guard row != 0, row != 1, row != 6 else {
+        guard row != 0, row != 1, row != 6, row != 11 else {
             return backgroundColor
         }
 
