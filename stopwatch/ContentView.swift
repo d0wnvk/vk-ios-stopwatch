@@ -40,6 +40,7 @@ struct ContentView: View {
 struct ThirdScreen: View {
     @State private var rightNumbers = Array(repeating: 0, count: 44)
     @State private var timerStartDate: Date?
+    @State private var independentTimerStartDate: Date?
     @State private var flashingCells: [Int: UUID] = [:]
     @State private var lastCellTapDates: [Int: Date] = [:]
 
@@ -48,9 +49,11 @@ struct ThirdScreen: View {
         10, 11, 12,
         14, 15, 16,
         18, 19, 20,
+        22, 23, 24,
         30, 31, 32,
         34, 35, 36,
         38, 39, 40,
+        42, 43, 44,
     ]
 
     var body: some View {
@@ -100,9 +103,22 @@ struct ThirdScreen: View {
 
                                 if cellNumber == 6 {
                                     TimelineView(.periodic(from: .now, by: 1)) { context in
-                                        Text(timerText(at: context.date))
-                                            .font(.system(size: 28, weight: .bold, design: .monospaced))
+                                        Text(timerText(at: context.date, since: timerStartDate))
+                                            .font(.system(size: 22.68, weight: .bold, design: .monospaced))
                                             .foregroundStyle(.yellow)
+                                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    }
+                                }
+
+                                if cellNumber == 8 {
+                                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                                        Text(timerText(
+                                            at: context.date,
+                                            since: independentTimerStartDate,
+                                            includesHours: true
+                                        ))
+                                            .font(.system(size: 19.6, weight: .bold, design: .monospaced))
+                                            .foregroundStyle(Color(red: 0.45, green: 0.9, blue: 1.0))
                                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     }
                                 }
@@ -121,24 +137,26 @@ struct ThirdScreen: View {
                                             .allowsHitTesting(false)
                                     }
 
-                                    HStack(spacing: 4) {
-                                        if !tappableCellNumbers.contains(cellNumber) {
-                                            counterButton("+") {
-                                                incrementCounter(for: cellNumber)
+                                    if column != 0 {
+                                        HStack(spacing: 4) {
+                                            if !tappableCellNumbers.contains(cellNumber) {
+                                                counterButton("+") {
+                                                    incrementCounter(for: cellNumber)
+                                                }
+                                            } else {
+                                                Color.clear
+                                                    .frame(maxWidth: .infinity)
+                                                    .frame(height: 23.66)
                                             }
-                                        } else {
-                                            Color.clear
-                                                .frame(maxWidth: .infinity)
-                                                .frame(height: 23.66)
-                                        }
 
-                                        counterButton("−") {
-                                            guard rightNumbers[cellNumber - 1] > 0 else { return }
-                                            rightNumbers[cellNumber - 1] -= 1
+                                            counterButton("−") {
+                                                guard rightNumbers[cellNumber - 1] > 0 else { return }
+                                                rightNumbers[cellNumber - 1] -= 1
+                                            }
                                         }
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                                        .padding(.bottom, 3)
                                     }
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                                    .padding(.bottom, 3)
                                 }
                             }
                                 .frame(maxWidth: .infinity)
@@ -181,16 +199,30 @@ struct ThirdScreen: View {
         .buttonStyle(.plain)
     }
 
-    private func timerText(at date: Date) -> String {
-        guard let timerStartDate else { return "00:00" }
+    private func timerText(
+        at date: Date,
+        since startDate: Date?,
+        includesHours: Bool = false
+    ) -> String {
+        guard let startDate else {
+            return includesHours ? "00:00:00" : "00:00"
+        }
 
-        let elapsedSeconds = max(0, Int(date.timeIntervalSince(timerStartDate)))
+        let elapsedSeconds = max(0, Int(date.timeIntervalSince(startDate)))
+        if includesHours {
+            let hours = elapsedSeconds / 3_600
+            let minutes = (elapsedSeconds / 60) % 60
+            let seconds = elapsedSeconds % 60
+            return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+        }
+
         return String(format: "%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60)
     }
 
     private func resetAll() {
         rightNumbers = Array(repeating: 0, count: rightNumbers.count)
         timerStartDate = nil
+        independentTimerStartDate = nil
         flashingCells.removeAll()
         lastCellTapDates.removeAll()
     }
@@ -208,6 +240,9 @@ struct ThirdScreen: View {
         }
 
         timerStartDate = now
+        if independentTimerStartDate == nil {
+            independentTimerStartDate = now
+        }
         rightNumbers[cellNumber - 1] += 1
 
         if tappableCellNumbers.contains(cellNumber) {
@@ -235,18 +270,39 @@ struct ThirdScreen: View {
         if let label = [
             10: "подтягивания",
             11: "сверху под 45гр",
+            12: "сидя узкий хват",
             14: "молотковый хват",
             15: "сидя снизу-вверх",
+            16: "z-гриф",
             18: "развод",
             19: "свод",
+            20: "плечи вверх",
+            22: "пресс",
+            23: "пресс",
+            24: "пресс",
             30: "вверх",
+            31: "сводящие, не толкающие",
+            32: "отжим на брусьях",
             34: "вверх",
+            35: "из положения лежа на спине",
+            36: "вниз",
             38: "вперед",
+            39: "приседы",
+            40: "назад",
+            42: "пресс",
+            43: "пресс",
+            44: "пресс",
         ][number] {
             VStack(spacing: -7) {
                 ForEach(labelLines(for: number, label: label), id: \.self) { line in
                     Text(line)
-                        .font(.title2)
+                        .font(
+                            number == 31 || number == 35
+                                ? .system(size: 15.4)
+                                : number == 12 || number == 15
+                                    ? .system(size: 21.28896)
+                                    : .title2
+                        )
                         .lineLimit(1)
                 }
             }
@@ -261,8 +317,13 @@ struct ThirdScreen: View {
         switch number {
         case 10: return ["подтяги-", "вания"]
         case 11: return ["сверху", "под 45гр"]
+        case 12: return ["сидя", "узкий", "хват"]
         case 14: return ["молотко-", "вый хват"]
-        case 15: return ["сидя снизу-", "вверх"]
+        case 15: return ["сидя", "снизу-", "вверх"]
+        case 20: return ["плечи", "вверх"]
+        case 31: return ["сводящие,", "не", "толкающие"]
+        case 32: return ["отжим на", "брусьях"]
+        case 35: return ["из положения", "лежа на", "спине"]
         default: return [label]
         }
     }
