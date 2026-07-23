@@ -58,7 +58,7 @@ struct ThirdScreen: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let standardRowHeight = geometry.size.height / 8.75
+            let standardRowHeight = geometry.size.height / 9
 
             Grid(horizontalSpacing: 0, verticalSpacing: 0) {
                 ForEach(0..<11, id: \.self) { row in
@@ -104,7 +104,7 @@ struct ThirdScreen: View {
                                 if cellNumber == 6 {
                                     TimelineView(.periodic(from: .now, by: 1)) { context in
                                         Text(timerText(at: context.date, since: timerStartDate))
-                                            .font(.system(size: 22.68, weight: .bold, design: .monospaced))
+                                            .font(.system(size: 29.4, weight: .bold, design: .monospaced))
                                             .foregroundStyle(.yellow)
                                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     }
@@ -112,12 +112,8 @@ struct ThirdScreen: View {
 
                                 if cellNumber == 8 {
                                     TimelineView(.periodic(from: .now, by: 1)) { context in
-                                        Text(timerText(
-                                            at: context.date,
-                                            since: independentTimerStartDate,
-                                            includesHours: true
-                                        ))
-                                            .font(.system(size: 19.6, weight: .bold, design: .monospaced))
+                                        Text(timerText(at: context.date, since: independentTimerStartDate))
+                                            .font(.system(size: 29.4, weight: .bold, design: .monospaced))
                                             .foregroundStyle(Color(red: 0.45, green: 0.9, blue: 1.0))
                                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     }
@@ -161,7 +157,15 @@ struct ThirdScreen: View {
                             }
                                 .frame(maxWidth: .infinity)
                                 .frame(width: column == 0 ? firstColumnWidth : nil)
-                                .frame(height: row == 0 || row == 1 || row == 6 ? standardRowHeight / 4 : standardRowHeight)
+                                .frame(
+                                    height: row == 0
+                                        ? standardRowHeight / 4
+                                        : row == 1
+                                            ? standardRowHeight * 9 / 16
+                                        : row == 6
+                                            ? standardRowHeight * 3 / 16
+                                            : standardRowHeight
+                                )
                                 .scaleEffect(
                                     tappableCellNumbers.contains(cellNumber) && flashingCells[cellNumber] != nil
                                         ? 0.96
@@ -193,7 +197,7 @@ struct ThirdScreen: View {
                 .font(.system(size: 13, weight: .bold))
                 .frame(maxWidth: .infinity)
                 .frame(height: 23.66)
-                .background(Color.black.opacity(0.3))
+                .background(Color.black.opacity(title == "−" ? 0.216 : 0.3))
                 .clipShape(RoundedRectangle(cornerRadius: 4))
         }
         .buttonStyle(.plain)
