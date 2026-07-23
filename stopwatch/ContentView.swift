@@ -58,7 +58,7 @@ struct ThirdScreen: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let standardRowHeight = geometry.size.height / 9
+            let standardRowHeight = geometry.size.height / 9.0825
 
             Grid(horizontalSpacing: 0, verticalSpacing: 0) {
                 ForEach(0..<11, id: \.self) { row in
@@ -141,8 +141,15 @@ struct ThirdScreen: View {
                                             .font(.system(size: 24, weight: .bold, design: .monospaced))
                                             .foregroundStyle(
                                                 rightNumbers[cellNumber - 1] > 0
-                                                    ? Color(red: 0.45, green: 0.9, blue: 1.0)
-                                                    : Color.white
+                                                    ? Color(red: 1.0, green: 0.95, blue: 0.05)
+                                                    : Color.blue
+                                            )
+                                            .opacity(rightNumbers[cellNumber - 1] > 0 ? 1 : 0.65)
+                                            .shadow(
+                                                color: rightNumbers[cellNumber - 1] > 0
+                                                    ? Color.yellow.opacity(0.9)
+                                                    : Color.clear,
+                                                radius: 4
                                             )
                                             // Counter Bounce: enlarges the counter briefly,
                                             // then returns it with a spring animation.
@@ -186,7 +193,7 @@ struct ThirdScreen: View {
                                         : row == 1
                                             ? standardRowHeight * 9 / 16
                                         : row == 6
-                                            ? standardRowHeight * 3 / 16
+                                            ? standardRowHeight * 27 / 100
                                             : standardRowHeight
                                 )
                                 // Scale Animation: slightly shrinks an accepted cell,
