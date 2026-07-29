@@ -58,7 +58,7 @@ struct ThirdScreen: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let standardRowHeight = geometry.size.height / 9.3725
+            let standardRowHeight = geometry.size.height / 9.65375
 
             Grid(horizontalSpacing: 0, verticalSpacing: 0) {
                 ForEach(0..<12, id: \.self) { row in
@@ -111,8 +111,7 @@ struct ThirdScreen: View {
 
                                 if cellNumber == 1 {
                                     Button("Reset", action: resetAll)
-                                        .font(.system(size: 14, weight: .bold))
-                                        .foregroundStyle(.red)
+                                        .font(.title2.monospacedDigit())
                                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                                         .buttonStyle(.plain)
                                 }
@@ -120,7 +119,7 @@ struct ThirdScreen: View {
                                 if cellNumber == 6 {
                                     TimelineView(.periodic(from: .now, by: 1)) { context in
                                         Text(timerText(at: context.date, since: timerStartDate))
-                                            .font(.system(size: 29.4, weight: .bold, design: .monospaced))
+                                            .font(.system(size: 32.34, weight: .bold, design: .monospaced))
                                             .foregroundStyle(.yellow)
                                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     }
@@ -129,7 +128,7 @@ struct ThirdScreen: View {
                                 if cellNumber == 8 {
                                     TimelineView(.periodic(from: .now, by: 1)) { context in
                                         Text(timerText(at: context.date, since: independentTimerStartDate))
-                                            .font(.system(size: 29.4, weight: .bold, design: .monospaced))
+                                            .font(.system(size: 32.34, weight: .bold, design: .monospaced))
                                             .foregroundStyle(Color(red: 0.45, green: 0.9, blue: 1.0))
                                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     }
@@ -164,22 +163,33 @@ struct ThirdScreen: View {
                                     }
 
                                     if column != 0 {
-                                        HStack(spacing: 4) {
-                                            if !tappableCellNumbers.contains(cellNumber) {
-                                                counterButton("+") {
-                                                    incrementCounter(for: cellNumber)
-                                                }
-                                            } else {
-                                                Color.clear
-                                                    .frame(maxWidth: .infinity)
-                                                    .frame(height: 23.66)
-                                            }
+                                        GeometryReader { buttonGeometry in
+                                            let spacing: CGFloat = 4
+                                            let originalButtonWidth = (buttonGeometry.size.width - spacing) / 2
+                                            let minusButtonWidth = originalButtonWidth * 0.7
+                                            let plusButtonWidth =
+                                                buttonGeometry.size.width - spacing - minusButtonWidth
 
-                                            counterButton("−") {
-                                                guard rightNumbers[cellNumber - 1] > 0 else { return }
-                                                rightNumbers[cellNumber - 1] -= 1
+                                            HStack(spacing: spacing) {
+                                                if !tappableCellNumbers.contains(cellNumber) {
+                                                    counterButton("+") {
+                                                        incrementCounter(for: cellNumber)
+                                                    }
+                                                    .frame(width: plusButtonWidth)
+                                                } else {
+                                                    Color.clear
+                                                        .frame(width: plusButtonWidth)
+                                                        .frame(height: 23.66)
+                                                }
+
+                                                counterButton("−") {
+                                                    guard rightNumbers[cellNumber - 1] > 0 else { return }
+                                                    rightNumbers[cellNumber - 1] -= 1
+                                                }
+                                                .frame(width: minusButtonWidth)
                                             }
                                         }
+                                        .frame(height: 23.66)
                                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                                         .padding(.bottom, 3)
                                     }
@@ -189,7 +199,7 @@ struct ThirdScreen: View {
                                 .frame(width: column == 0 ? firstColumnWidth : nil)
                                 .frame(
                                     height: row == 1
-                                            ? standardRowHeight * 9 / 16
+                                            ? standardRowHeight * 27 / 32
                                         : row == 0 || row == 6 || row == 11
                                             ? standardRowHeight * 27 / 100
                                             : standardRowHeight
@@ -316,9 +326,9 @@ struct ThirdScreen: View {
             14: "молотковый хват",
             15: "сидя снизу-вверх",
             16: "z-гриф",
-            18: "развод",
-            19: "свод",
-            20: "плечи вверх",
+            18: "плечи вверх",
+            19: "развод",
+            20: "свод",
             22: "пресс",
             23: "пресс",
             24: "пресс",
@@ -362,7 +372,7 @@ struct ThirdScreen: View {
         case 12: return ["сидя", "узкий", "хват"]
         case 14: return ["молотко-", "вый хват"]
         case 15: return ["сидя", "снизу-", "вверх"]
-        case 20: return ["плечи", "вверх"]
+        case 18: return ["плечи", "вверх"]
         case 31: return ["сводящие,", "не тол-", "кающие"]
         case 32: return ["отжим на", "брусьях"]
         case 35: return ["из положе-", "ния лежа", "на спине"]
