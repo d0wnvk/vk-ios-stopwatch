@@ -25,7 +25,7 @@ struct ContentView: View {
             SecondScreen()
                 .tag(1)
                 .tabItem {
-                    Label("Second", systemImage: "square.grid.2x2")
+                    Label("Eye Break", systemImage: "eye")
                 }
 
             ThirdScreen()
@@ -58,7 +58,7 @@ struct ThirdScreen: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let standardRowHeight = geometry.size.height / 9.3725
+            let standardRowHeight = geometry.size.height / 9.65375
 
             Grid(horizontalSpacing: 0, verticalSpacing: 0) {
                 ForEach(0..<12, id: \.self) { row in
@@ -111,8 +111,7 @@ struct ThirdScreen: View {
 
                                 if cellNumber == 1 {
                                     Button("Reset", action: resetAll)
-                                        .font(.system(size: 14, weight: .bold))
-                                        .foregroundStyle(.red)
+                                        .font(.title2.monospacedDigit())
                                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                                         .buttonStyle(.plain)
                                 }
@@ -120,7 +119,7 @@ struct ThirdScreen: View {
                                 if cellNumber == 6 {
                                     TimelineView(.periodic(from: .now, by: 1)) { context in
                                         Text(timerText(at: context.date, since: timerStartDate))
-                                            .font(.system(size: 29.4, weight: .bold, design: .monospaced))
+                                            .font(.system(size: 32.34, weight: .bold, design: .monospaced))
                                             .foregroundStyle(.yellow)
                                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     }
@@ -129,7 +128,7 @@ struct ThirdScreen: View {
                                 if cellNumber == 8 {
                                     TimelineView(.periodic(from: .now, by: 1)) { context in
                                         Text(timerText(at: context.date, since: independentTimerStartDate))
-                                            .font(.system(size: 29.4, weight: .bold, design: .monospaced))
+                                            .font(.system(size: 32.34, weight: .bold, design: .monospaced))
                                             .foregroundStyle(Color(red: 0.45, green: 0.9, blue: 1.0))
                                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     }
@@ -164,22 +163,33 @@ struct ThirdScreen: View {
                                     }
 
                                     if column != 0 {
-                                        HStack(spacing: 4) {
-                                            if !tappableCellNumbers.contains(cellNumber) {
-                                                counterButton("+") {
-                                                    incrementCounter(for: cellNumber)
-                                                }
-                                            } else {
-                                                Color.clear
-                                                    .frame(maxWidth: .infinity)
-                                                    .frame(height: 23.66)
-                                            }
+                                        GeometryReader { buttonGeometry in
+                                            let spacing: CGFloat = 4
+                                            let originalButtonWidth = (buttonGeometry.size.width - spacing) / 2
+                                            let minusButtonWidth = originalButtonWidth * 0.7
+                                            let plusButtonWidth =
+                                                buttonGeometry.size.width - spacing - minusButtonWidth
 
-                                            counterButton("−") {
-                                                guard rightNumbers[cellNumber - 1] > 0 else { return }
-                                                rightNumbers[cellNumber - 1] -= 1
+                                            HStack(spacing: spacing) {
+                                                if !tappableCellNumbers.contains(cellNumber) {
+                                                    counterButton("+") {
+                                                        incrementCounter(for: cellNumber)
+                                                    }
+                                                    .frame(width: plusButtonWidth)
+                                                } else {
+                                                    Color.clear
+                                                        .frame(width: plusButtonWidth)
+                                                        .frame(height: 23.66)
+                                                }
+
+                                                counterButton("−") {
+                                                    guard rightNumbers[cellNumber - 1] > 0 else { return }
+                                                    rightNumbers[cellNumber - 1] -= 1
+                                                }
+                                                .frame(width: minusButtonWidth)
                                             }
                                         }
+                                        .frame(height: 23.66)
                                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                                         .padding(.bottom, 3)
                                     }
@@ -189,7 +199,7 @@ struct ThirdScreen: View {
                                 .frame(width: column == 0 ? firstColumnWidth : nil)
                                 .frame(
                                     height: row == 1
-                                            ? standardRowHeight * 9 / 16
+                                            ? standardRowHeight * 27 / 32
                                         : row == 0 || row == 6 || row == 11
                                             ? standardRowHeight * 27 / 100
                                             : standardRowHeight
@@ -316,9 +326,9 @@ struct ThirdScreen: View {
             14: "молотковый хват",
             15: "сидя снизу-вверх",
             16: "z-гриф",
-            18: "развод",
-            19: "свод",
-            20: "плечи вверх",
+            18: "плечи вверх",
+            19: "развод",
+            20: "свод",
             22: "пресс",
             23: "пресс",
             24: "пресс",
@@ -362,7 +372,7 @@ struct ThirdScreen: View {
         case 12: return ["сидя", "узкий", "хват"]
         case 14: return ["молотко-", "вый хват"]
         case 15: return ["сидя", "снизу-", "вверх"]
-        case 20: return ["плечи", "вверх"]
+        case 18: return ["плечи", "вверх"]
         case 31: return ["сводящие,", "не тол-", "кающие"]
         case 32: return ["отжим на", "брусьях"]
         case 35: return ["из положе-", "ния лежа", "на спине"]
@@ -646,6 +656,7 @@ struct SecondScreen: View {
     @State private var cycleStartDate: Date?
     @State private var restartLog: [String] = []
     @State private var hapticEngine: CHHapticEngine?
+    @State private var completedIntervalCount = 0
 
     private let repeatingTimer = Timer.publish(every: 0.01, on: .main, in: .common).autoconnect()
     private let feedbackGenerator = UIImpactFeedbackGenerator(style: .heavy)
@@ -655,6 +666,10 @@ struct SecondScreen: View {
             Color.black.ignoresSafeArea()
 
             VStack(spacing: 28) {
+                Text("Eye Break")
+                    .font(.largeTitle.bold())
+                    .foregroundStyle(.white)
+
                 Text(formattedTime(elapsedTime))
                     .font(.system(size: 72, weight: .semibold, design: .monospaced))
                     .foregroundStyle(.white)
@@ -697,19 +712,25 @@ struct SecondScreen: View {
                     .disabled(cycleStartDate == nil && elapsedTime == 0)
                 }
 
-                List {
-                    ForEach(Array(restartLog.enumerated()), id: \.offset) { index, entry in
-                        HStack {
-                            Text("Event \(restartLog.count - index)")
-                            Spacer()
-                            Text(entry)
-                                .fontDesign(.monospaced)
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(restartLog.enumerated()), id: \.offset) { index, entry in
+                            HStack(spacing: 12) {
+                                Text("#\(restartLog.count - index)")
+                                Text(entry)
+                            }
+                            .font(.caption.monospaced())
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
+                            .accessibilityElement(children: .combine)
+
+                            if index < restartLog.count - 1 {
+                                Divider()
+                            }
                         }
-                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                     }
                 }
-                .environment(\.defaultMinListRowHeight, 28)
-                .scrollContentBackground(.hidden)
             }
         }
         .onAppear {
@@ -724,7 +745,8 @@ struct SecondScreen: View {
                 self.cycleStartDate = now
                 elapsedTime = 0
                 restartLog.insert("Restarted", at: 0)
-                triggerResetHaptics()
+                completedIntervalCount += 1
+                triggerIntervalHaptics(for: completedIntervalCount)
             } else {
                 elapsedTime = cycleElapsed
             }
@@ -734,6 +756,7 @@ struct SecondScreen: View {
     private func startRepeatingTimer() {
         cycleStartDate = Date()
         elapsedTime = 0
+        completedIntervalCount = 0
         restartLog.insert("Started", at: 0)
         feedbackGenerator.prepare()
         prepareHaptics()
@@ -747,67 +770,29 @@ struct SecondScreen: View {
     private func resetRepeatingTimer() {
         cycleStartDate = nil
         elapsedTime = 0
+        completedIntervalCount = 0
         restartLog.removeAll()
     }
 
-    private func triggerResetHaptics() {
+    private func triggerIntervalHaptics(for interval: Int) {
+        let buzzStartTimes = buzzStartTimes(for: interval)
+
         guard let hapticEngine else {
-            triggerFallbackHaptics()
+            triggerFallbackHaptics(at: buzzStartTimes)
             return
         }
 
-        let events: [CHHapticEvent] = [
+        let events = buzzStartTimes.map { startTime in
             CHHapticEvent(
                 eventType: .hapticContinuous,
                 parameters: [
                     CHHapticEventParameter(parameterID: .hapticIntensity, value: 1.0),
-                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.95),
+                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.9),
                 ],
-                relativeTime: 0,
-                duration: 0.18
-            ),
-            CHHapticEvent(
-                eventType: .hapticTransient,
-                parameters: [
-                    CHHapticEventParameter(parameterID: .hapticIntensity, value: 1.0),
-                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 1.0),
-                ],
-                relativeTime: 0.02
-            ),
-            CHHapticEvent(
-                eventType: .hapticTransient,
-                parameters: [
-                    CHHapticEventParameter(parameterID: .hapticIntensity, value: 1.0),
-                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 1.0),
-                ],
-                relativeTime: 0.08
-            ),
-            CHHapticEvent(
-                eventType: .hapticContinuous,
-                parameters: [
-                    CHHapticEventParameter(parameterID: .hapticIntensity, value: 1.0),
-                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 1.0),
-                ],
-                relativeTime: 0.18,
-                duration: 0.22
-            ),
-            CHHapticEvent(
-                eventType: .hapticTransient,
-                parameters: [
-                    CHHapticEventParameter(parameterID: .hapticIntensity, value: 1.0),
-                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 1.0),
-                ],
-                relativeTime: 0.20
-            ),
-            CHHapticEvent(
-                eventType: .hapticTransient,
-                parameters: [
-                    CHHapticEventParameter(parameterID: .hapticIntensity, value: 1.0),
-                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 1.0),
-                ],
-                relativeTime: 0.28
-            ),
-        ]
+                relativeTime: startTime,
+                duration: 0.10
+            )
+        }
 
         do {
             let pattern = try CHHapticPattern(events: events, parameters: [])
@@ -815,7 +800,19 @@ struct SecondScreen: View {
             try hapticEngine.start()
             try player.start(atTime: 0)
         } catch {
-            triggerFallbackHaptics()
+            triggerFallbackHaptics(at: buzzStartTimes)
+        }
+    }
+
+    private func buzzStartTimes(for interval: Int) -> [TimeInterval] {
+        let buzzCount = ((interval - 1) % 16) + 1
+
+        return (0..<buzzCount).map { buzzIndex in
+            let groupIndex = buzzIndex / 2
+            let positionWithinGroup = buzzIndex % 2
+
+            return TimeInterval(groupIndex) * 0.55
+                + TimeInterval(positionWithinGroup) * 0.18
         }
     }
 
@@ -836,10 +833,8 @@ struct SecondScreen: View {
         }
     }
 
-    private func triggerFallbackHaptics() {
-        let pulseDelays: [TimeInterval] = [0, 0.05, 0.10, 0.16, 0.22, 0.28]
-
-        for delay in pulseDelays {
+    private func triggerFallbackHaptics(at buzzStartTimes: [TimeInterval]) {
+        for delay in buzzStartTimes {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 feedbackGenerator.impactOccurred(intensity: 1.0)
                 feedbackGenerator.prepare()
