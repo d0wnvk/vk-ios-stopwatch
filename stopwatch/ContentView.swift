@@ -25,7 +25,7 @@ struct ContentView: View {
             SecondScreen()
                 .tag(1)
                 .tabItem {
-                    Label("Second", systemImage: "square.grid.2x2")
+                    Label("Eye Break", systemImage: "eye")
                 }
 
             ThirdScreen()
@@ -646,6 +646,7 @@ struct SecondScreen: View {
     @State private var cycleStartDate: Date?
     @State private var restartLog: [String] = []
     @State private var hapticEngine: CHHapticEngine?
+    @State private var completedIntervalCount = 0
 
     private let repeatingTimer = Timer.publish(every: 0.01, on: .main, in: .common).autoconnect()
     private let feedbackGenerator = UIImpactFeedbackGenerator(style: .heavy)
@@ -655,6 +656,10 @@ struct SecondScreen: View {
             Color.black.ignoresSafeArea()
 
             VStack(spacing: 28) {
+                Text("Eye Break")
+                    .font(.largeTitle.bold())
+                    .foregroundStyle(.white)
+
                 Text(formattedTime(elapsedTime))
                     .font(.system(size: 72, weight: .semibold, design: .monospaced))
                     .foregroundStyle(.white)
@@ -697,19 +702,25 @@ struct SecondScreen: View {
                     .disabled(cycleStartDate == nil && elapsedTime == 0)
                 }
 
-                List {
-                    ForEach(Array(restartLog.enumerated()), id: \.offset) { index, entry in
-                        HStack {
-                            Text("Event \(restartLog.count - index)")
-                            Spacer()
-                            Text(entry)
-                                .fontDesign(.monospaced)
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(restartLog.enumerated()), id: \.offset) { index, entry in
+                            HStack(spacing: 12) {
+                                Text("#\(restartLog.count - index)")
+                                Text(entry)
+                            }
+                            .font(.caption.monospaced())
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
+                            .accessibilityElement(children: .combine)
+
+                            if index < restartLog.count - 1 {
+                                Divider()
+                            }
                         }
-                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                     }
                 }
-                .environment(\.defaultMinListRowHeight, 28)
-                .scrollContentBackground(.hidden)
             }
         }
         .onAppear {
@@ -724,7 +735,8 @@ struct SecondScreen: View {
                 self.cycleStartDate = now
                 elapsedTime = 0
                 restartLog.insert("Restarted", at: 0)
-                triggerResetHaptics()
+                completedIntervalCount += 1
+                triggerIntervalHaptics(for: completedIntervalCount)
             } else {
                 elapsedTime = cycleElapsed
             }
@@ -734,6 +746,7 @@ struct SecondScreen: View {
     private func startRepeatingTimer() {
         cycleStartDate = Date()
         elapsedTime = 0
+        completedIntervalCount = 0
         restartLog.insert("Started", at: 0)
         feedbackGenerator.prepare()
         prepareHaptics()
@@ -747,67 +760,29 @@ struct SecondScreen: View {
     private func resetRepeatingTimer() {
         cycleStartDate = nil
         elapsedTime = 0
+        completedIntervalCount = 0
         restartLog.removeAll()
     }
 
-    private func triggerResetHaptics() {
+    private func triggerIntervalHaptics(for interval: Int) {
+        let buzzStartTimes = buzzStartTimes(for: interval)
+
         guard let hapticEngine else {
-            triggerFallbackHaptics()
+            triggerFallbackHaptics(at: buzzStartTimes)
             return
         }
 
-        let events: [CHHapticEvent] = [
+        let events = buzzStartTimes.map { startTime in
             CHHapticEvent(
                 eventType: .hapticContinuous,
                 parameters: [
                     CHHapticEventParameter(parameterID: .hapticIntensity, value: 1.0),
-                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.95),
+                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.9),
                 ],
-                relativeTime: 0,
-                duration: 0.18
-            ),
-            CHHapticEvent(
-                eventType: .hapticTransient,
-                parameters: [
-                    CHHapticEventParameter(parameterID: .hapticIntensity, value: 1.0),
-                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 1.0),
-                ],
-                relativeTime: 0.02
-            ),
-            CHHapticEvent(
-                eventType: .hapticTransient,
-                parameters: [
-                    CHHapticEventParameter(parameterID: .hapticIntensity, value: 1.0),
-                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 1.0),
-                ],
-                relativeTime: 0.08
-            ),
-            CHHapticEvent(
-                eventType: .hapticContinuous,
-                parameters: [
-                    CHHapticEventParameter(parameterID: .hapticIntensity, value: 1.0),
-                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 1.0),
-                ],
-                relativeTime: 0.18,
-                duration: 0.22
-            ),
-            CHHapticEvent(
-                eventType: .hapticTransient,
-                parameters: [
-                    CHHapticEventParameter(parameterID: .hapticIntensity, value: 1.0),
-                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 1.0),
-                ],
-                relativeTime: 0.20
-            ),
-            CHHapticEvent(
-                eventType: .hapticTransient,
-                parameters: [
-                    CHHapticEventParameter(parameterID: .hapticIntensity, value: 1.0),
-                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 1.0),
-                ],
-                relativeTime: 0.28
-            ),
-        ]
+                relativeTime: startTime,
+                duration: 0.10
+            )
+        }
 
         do {
             let pattern = try CHHapticPattern(events: events, parameters: [])
@@ -815,7 +790,19 @@ struct SecondScreen: View {
             try hapticEngine.start()
             try player.start(atTime: 0)
         } catch {
-            triggerFallbackHaptics()
+            triggerFallbackHaptics(at: buzzStartTimes)
+        }
+    }
+
+    private func buzzStartTimes(for interval: Int) -> [TimeInterval] {
+        let buzzCount = ((interval - 1) % 16) + 1
+
+        return (0..<buzzCount).map { buzzIndex in
+            let groupIndex = buzzIndex / 2
+            let positionWithinGroup = buzzIndex % 2
+
+            return TimeInterval(groupIndex) * 0.55
+                + TimeInterval(positionWithinGroup) * 0.18
         }
     }
 
@@ -836,10 +823,8 @@ struct SecondScreen: View {
         }
     }
 
-    private func triggerFallbackHaptics() {
-        let pulseDelays: [TimeInterval] = [0, 0.05, 0.10, 0.16, 0.22, 0.28]
-
-        for delay in pulseDelays {
+    private func triggerFallbackHaptics(at buzzStartTimes: [TimeInterval]) {
+        for delay in buzzStartTimes {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 feedbackGenerator.impactOccurred(intensity: 1.0)
                 feedbackGenerator.prepare()
