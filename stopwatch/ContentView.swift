@@ -10,6 +10,7 @@ import Foundation
 import Combine
 import UIKit
 import CoreHaptics
+import AVFoundation
 
 struct ContentView: View {
     @State private var selectedTab = 2
@@ -31,7 +32,7 @@ struct ContentView: View {
             ThirdScreen()
                 .tag(2)
                 .tabItem {
-                    Label("Third", systemImage: "terminal")
+                    Label("Sport tracker", systemImage: "terminal")
                 }
 
             Insta360RecorderScreen()
@@ -55,6 +56,10 @@ struct ThirdScreen: View {
     @State private var independentTimerStartDate: Date?
     @State private var flashingCells: [Int: UUID] = [:]
     @State private var lastCellTapDates: [Int: Date] = [:]
+    @State private var didPlayOneMinuteSound = false
+    @State private var sportTrackerAudioPlayer: AVAudioPlayer?
+
+    private let oneMinuteSoundTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     private let backgroundColor = Color(red: 0.27, green: 0.27, blue: 0.25)
     private let tappableCellNumbers: Set<Int> = [
@@ -249,6 +254,12 @@ struct ThirdScreen: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(backgroundColor)
         .foregroundStyle(.white)
+        .onReceive(oneMinuteSoundTimer) { now in
+            playOneMinuteSoundIfNeeded(at: now)
+        }
+        .onDisappear {
+            sportTrackerAudioPlayer?.stop()
+        }
     }
 
     private func counterButton(_ title: String, action: @escaping () -> Void) -> some View {
@@ -289,6 +300,8 @@ struct ThirdScreen: View {
         independentTimerStartDate = nil
         flashingCells.removeAll()
         lastCellTapDates.removeAll()
+        didPlayOneMinuteSound = false
+        sportTrackerAudioPlayer?.stop()
     }
 
     private func incrementCounter(for cellNumber: Int) {
@@ -304,6 +317,8 @@ struct ThirdScreen: View {
         }
 
         timerStartDate = now
+        didPlayOneMinuteSound = false
+        sportTrackerAudioPlayer?.stop()
         if independentTimerStartDate == nil {
             independentTimerStartDate = now
         }
@@ -317,6 +332,27 @@ struct ThirdScreen: View {
                 guard flashingCells[cellNumber] == flashID else { return }
                 flashingCells[cellNumber] = nil
             }
+        }
+    }
+
+    private func playOneMinuteSoundIfNeeded(at now: Date) {
+        guard let timerStartDate,
+              !didPlayOneMinuteSound,
+              now.timeIntervalSince(timerStartDate) > 60 else { return }
+
+        didPlayOneMinuteSound = true
+        guard let soundURL = Bundle.main.url(
+            forResource: "sport-tracker-audio",
+            withExtension: "m4a"
+        ) else { return }
+
+        do {
+            let player = try AVAudioPlayer(contentsOf: soundURL)
+            player.prepareToPlay()
+            sportTrackerAudioPlayer = player
+            player.play()
+        } catch {
+            sportTrackerAudioPlayer = nil
         }
     }
 
