@@ -43,7 +43,7 @@ struct ContentView: View {
             VideoPlayerView()
                 .tag(4)
                 .tabItem {
-                    Label("Videos", systemImage: "play.rectangle.fill")
+                    Label("Video player", systemImage: "play.rectangle.fill")
                 }
         }
     }
