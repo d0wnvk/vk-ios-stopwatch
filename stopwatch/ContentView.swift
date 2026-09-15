@@ -39,6 +39,12 @@ struct ContentView: View {
                 .tabItem {
                     Label("Insta", systemImage: "video.fill")
                 }
+
+            VideoPlayerView()
+                .tag(4)
+                .tabItem {
+                    Label("Videos", systemImage: "play.rectangle.fill")
+                }
         }
     }
 }
