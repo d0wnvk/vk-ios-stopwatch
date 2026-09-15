@@ -25,9 +25,7 @@ final class RecorderController: NSObject, ObservableObject {
     @Published private(set) var recordOneEndOrientation: Vector3D?
     @Published private(set) var lastRecordingURL: URL?
 
-    var canRecord: Bool {
-        cameraReady && gimbalConnected && !isRecording && !isReturningGimbal
-    }
+    var canAttemptRecording: Bool { !isRecording && !isReturningGimbal }
     var canAdjustZoom: Bool { cameraReady && !isRecording && !isReturningGimbal }
     var canSetRecordOneEndpoint: Bool { canAdjustZoom && gimbalConnected }
 
@@ -68,11 +66,17 @@ final class RecorderController: NSObject, ObservableObject {
         observeIPhoneBattery()
         observeDock()
 
-        let authorized = await requestPermissions()
-        guard authorized else {
-            status = "Camera, microphone, and Photos permissions are required."
+        let cameraAuthorized = await requestCameraPermission()
+        guard cameraAuthorized else {
+            status = "Camera access is required. Enable it in Settings > Privacy & Security > Camera."
             return
         }
+
+        // Audio and Photos are optional. A denied microphone permission produces a
+        // silent movie, while a denied Photos permission still leaves the movie in
+        // the app's Library.
+        _ = await AVCaptureDevice.requestAccess(for: .audio)
+        _ = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
 
         do {
             try configureCamera()
@@ -106,7 +110,7 @@ final class RecorderController: NSObject, ObservableObject {
     }
 
     func record() {
-        guard canRecord, let accessory, let camera else { return }
+        guard canBeginRecording(), let accessory, let camera else { return }
         pendingRecordingFailure = nil
         isRecording = true
         status = "Preparing Record 1…"
@@ -118,7 +122,7 @@ final class RecorderController: NSObject, ObservableObject {
     }
 
     func recordVerticalZoomOut() {
-        guard canRecord, let accessory, let camera else { return }
+        guard canBeginRecording(), let accessory, let camera else { return }
         pendingRecordingFailure = nil
         isRecording = true
         status = "Preparing vertical shot…"
@@ -499,7 +503,8 @@ final class RecorderController: NSObject, ObservableObject {
         guard session.canAddInput(videoInput) else { throw RecorderError.cannotAddInput }
         session.addInput(videoInput)
 
-        if let microphone = AVCaptureDevice.default(for: .audio) {
+        if AVCaptureDevice.authorizationStatus(for: .audio) == .authorized,
+           let microphone = AVCaptureDevice.default(for: .audio) {
             let audioInput = try AVCaptureDeviceInput(device: microphone)
             if session.canAddInput(audioInput) { session.addInput(audioInput) }
         }
@@ -520,11 +525,28 @@ final class RecorderController: NSObject, ObservableObject {
         currentZoom = device.videoZoomFactor
     }
 
-    private func requestPermissions() async -> Bool {
-        let cameraOK = await AVCaptureDevice.requestAccess(for: .video)
-        let microphoneOK = await AVCaptureDevice.requestAccess(for: .audio)
-        let photos = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
-        return cameraOK && microphoneOK && (photos == .authorized || photos == .limited)
+    private func requestCameraPermission() async -> Bool {
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            return true
+        case .notDetermined:
+            return await AVCaptureDevice.requestAccess(for: .video)
+        default:
+            return false
+        }
+    }
+
+    private func canBeginRecording() -> Bool {
+        guard !isRecording, !isReturningGimbal else { return false }
+        guard cameraReady else {
+            status = "The camera is not ready. Check Camera access in Settings."
+            return false
+        }
+        guard gimbalConnected else {
+            status = "Connect and dock the Insta360 Flow 2 Pro before recording."
+            return false
+        }
+        return true
     }
 }
 

@@ -135,7 +135,7 @@ struct Insta360RecorderView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint((recorder.isRecording ? Color.gray : .red).opacity(0.5))
-                    .disabled(!recorder.canRecord)
+                    .disabled(!recorder.canAttemptRecording)
                     .accessibilityLabel("Record delayed upward tilt and zoom-out shot")
 
                     Button(action: recorder.recordVerticalZoomOut) {
@@ -146,7 +146,7 @@ struct Insta360RecorderView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint((recorder.isRecording ? Color.gray : .blue).opacity(0.5))
-                    .disabled(!recorder.canRecord)
+                    .disabled(!recorder.canAttemptRecording)
                     .accessibilityLabel("Record vertical tilt and zoom-out shot")
 
                     Button(action: recorder.cancelRecording) {
