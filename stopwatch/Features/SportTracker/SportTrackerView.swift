@@ -1,31 +1,15 @@
-import AVFoundation
 import Combine
 import Foundation
 import SwiftUI
 import UIKit
 
 struct SportTrackerView: View {
-    @State private var rightNumbers = Array(repeating: 0, count: 48)
-    @State private var timerStartDate: Date?
-    @State private var independentTimerStartDate: Date?
-    @State private var flashingCells: [Int: UUID] = [:]
-    @State private var lastCellTapDates: [Int: Date] = [:]
-    @State private var didPlayOneMinuteSound = false
-    @State private var sportTrackerAudioPlayer: AVAudioPlayer?
+    @StateObject private var model = SportTrackerModel()
 
     private let oneMinuteSoundTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     private let backgroundColor = Color(red: 0.27, green: 0.27, blue: 0.25)
-    private let tappableCellNumbers: Set<Int> = [
-        10, 11, 12,
-        14, 15, 16,
-        18, 19, 20,
-        22, 23, 24,
-        30, 31, 32,
-        34, 35, 36,
-        38, 39, 40,
-        42, 43, 44,
-    ]
+    private let tappableCellNumbers = SportTrackerModel.tappableCellNumbers
 
     var body: some View {
         GeometryReader { geometry in
@@ -40,13 +24,13 @@ struct SportTrackerView: View {
                             ZStack {
                                 if tappableCellNumbers.contains(cellNumber) {
                                     Button {
-                                        incrementCounter(for: cellNumber)
+                                        model.incrementCounter(for: cellNumber)
                                     } label: {
                                         Color.clear
                                             // Brief Color Flash: temporarily adds a light-cyan tint
                                             // after an accepted tap.
                                             .background(
-                                                flashingCells[cellNumber] != nil
+                                                model.flashingCells[cellNumber] != nil
                                                     ? Color(red: 0.45, green: 0.9, blue: 1.0).opacity(0.3)
                                                     : Color.clear
                                             )
@@ -54,7 +38,7 @@ struct SportTrackerView: View {
                                     }
                                     .buttonStyle(.plain)
 
-                                    CellColorFillEffect(trigger: flashingCells[cellNumber])
+                                    CellColorFillEffect(trigger: model.flashingCells[cellNumber])
                                         .allowsHitTesting(false)
                                 }
 
@@ -62,13 +46,13 @@ struct SportTrackerView: View {
                                     .allowsHitTesting(false)
 
                                 if tappableCellNumbers.contains(cellNumber) {
-                                    CellRippleEffect(trigger: flashingCells[cellNumber])
+                                    CellRippleEffect(trigger: model.flashingCells[cellNumber])
                                         .allowsHitTesting(false)
 
-                                    CellParticleBurstEffect(trigger: flashingCells[cellNumber])
+                                    CellParticleBurstEffect(trigger: model.flashingCells[cellNumber])
                                         .allowsHitTesting(false)
 
-                                    CellCooldownRingEffect(trigger: flashingCells[cellNumber])
+                                    CellCooldownRingEffect(trigger: model.flashingCells[cellNumber])
                                         .allowsHitTesting(false)
                                 }
 
@@ -81,7 +65,7 @@ struct SportTrackerView: View {
                                 }
 
                                 if cellNumber == 1 {
-                                    Button("Reset", action: resetAll)
+                                    Button("Reset", action: model.resetAll)
                                         .font(.title2.monospacedDigit())
                                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                                         .buttonStyle(.plain)
@@ -89,7 +73,7 @@ struct SportTrackerView: View {
 
                                 if cellNumber == 6 {
                                     TimelineView(.periodic(from: .now, by: 1)) { context in
-                                        Text(timerText(at: context.date, since: timerStartDate))
+                                        Text(timerText(at: context.date, since: model.timerStartDate))
                                             .font(.system(size: 32.34, weight: .bold, design: .monospaced))
                                             .foregroundStyle(.yellow)
                                             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -98,7 +82,7 @@ struct SportTrackerView: View {
 
                                 if cellNumber == 8 {
                                     TimelineView(.periodic(from: .now, by: 1)) { context in
-                                        Text(timerText(at: context.date, since: independentTimerStartDate))
+                                        Text(timerText(at: context.date, since: model.independentTimerStartDate))
                                             .font(.system(size: 32.34, weight: .bold, design: .monospaced))
                                             .foregroundStyle(Color(red: 0.45, green: 0.9, blue: 1.0))
                                             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -107,26 +91,26 @@ struct SportTrackerView: View {
 
                                 if row != 0 && row != 1 && row != 6 && row != 11 {
                                     if column != 0 {
-                                        Text(String(rightNumbers[cellNumber - 1]))
+                                        Text(String(model.rightNumbers[cellNumber - 1]))
                                             .font(.system(size: 24, weight: .bold, design: .monospaced))
                                             .foregroundStyle(
-                                                rightNumbers[cellNumber - 1] > 0
+                                                model.rightNumbers[cellNumber - 1] > 0
                                                     ? Color(red: 1.0, green: 0.95, blue: 0.05)
                                                     : Color.blue
                                             )
-                                            .opacity(rightNumbers[cellNumber - 1] > 0 ? 1 : 0)
+                                            .opacity(model.rightNumbers[cellNumber - 1] > 0 ? 1 : 0)
                                             .shadow(
-                                                color: rightNumbers[cellNumber - 1] > 0
+                                                color: model.rightNumbers[cellNumber - 1] > 0
                                                     ? Color.yellow.opacity(0.9)
                                                     : Color.clear,
                                                 radius: 4
                                             )
                                             // Counter Bounce: enlarges the counter briefly,
                                             // then returns it with a spring animation.
-                                            .scaleEffect(flashingCells[cellNumber] != nil ? 1.4 : 1)
+                                            .scaleEffect(model.flashingCells[cellNumber] != nil ? 1.4 : 1)
                                             .animation(
                                                 .spring(response: 0.2, dampingFraction: 0.5),
-                                                value: flashingCells[cellNumber]
+                                                value: model.flashingCells[cellNumber]
                                             )
                                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                                             .padding(4)
@@ -144,7 +128,7 @@ struct SportTrackerView: View {
                                             HStack(spacing: spacing) {
                                                 if !tappableCellNumbers.contains(cellNumber) {
                                                     counterButton("+") {
-                                                        incrementCounter(for: cellNumber)
+                                                        model.incrementCounter(for: cellNumber)
                                                     }
                                                     .frame(width: plusButtonWidth)
                                                 } else {
@@ -154,8 +138,7 @@ struct SportTrackerView: View {
                                                 }
 
                                                 counterButton("−") {
-                                                    guard rightNumbers[cellNumber - 1] > 0 else { return }
-                                                    rightNumbers[cellNumber - 1] -= 1
+                                                    model.decrementCounter(for: cellNumber)
                                                 }
                                                 .frame(width: minusButtonWidth)
                                             }
@@ -178,21 +161,22 @@ struct SportTrackerView: View {
                                 // Scale Animation: slightly shrinks an accepted cell,
                                 // then springs it back to its normal size.
                                 .scaleEffect(
-                                    tappableCellNumbers.contains(cellNumber) && flashingCells[cellNumber] != nil
+                                    tappableCellNumbers.contains(cellNumber)
+                                        && model.flashingCells[cellNumber] != nil
                                         ? 0.96
                                         : 1
                                 )
                                 // Glow: briefly adds a light-cyan shadow around
                                 // an accepted cell.
                                 .shadow(
-                                    color: flashingCells[cellNumber] != nil
+                                    color: model.flashingCells[cellNumber] != nil
                                         ? Color(red: 0.45, green: 0.9, blue: 1.0).opacity(0.9)
                                         : Color.clear,
                                     radius: 12
                                 )
                                 .animation(
                                     .spring(response: 0.18, dampingFraction: 0.6),
-                                    value: flashingCells[cellNumber]
+                                    value: model.flashingCells[cellNumber]
                                 )
                                 .background(columnColor(for: column, row: row))
                                 .overlay {
@@ -209,10 +193,10 @@ struct SportTrackerView: View {
         .background(backgroundColor)
         .foregroundStyle(.white)
         .onReceive(oneMinuteSoundTimer) { now in
-            playOneMinuteSoundIfNeeded(at: now)
+            model.playOneMinuteSoundIfNeeded(at: now)
         }
         .onDisappear {
-            sportTrackerAudioPlayer?.stop()
+            model.stopAudio()
         }
     }
 
@@ -246,68 +230,6 @@ struct SportTrackerView: View {
         }
 
         return String(format: "%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60)
-    }
-
-    private func resetAll() {
-        rightNumbers = Array(repeating: 0, count: rightNumbers.count)
-        timerStartDate = nil
-        independentTimerStartDate = nil
-        flashingCells.removeAll()
-        lastCellTapDates.removeAll()
-        didPlayOneMinuteSound = false
-        sportTrackerAudioPlayer?.stop()
-    }
-
-    private func incrementCounter(for cellNumber: Int) {
-        let now = Date()
-
-        if tappableCellNumbers.contains(cellNumber) {
-            if let lastTapDate = lastCellTapDates[cellNumber],
-               now.timeIntervalSince(lastTapDate) < 1 {
-                return
-            }
-
-            lastCellTapDates[cellNumber] = now
-        }
-
-        timerStartDate = now
-        didPlayOneMinuteSound = false
-        sportTrackerAudioPlayer?.stop()
-        if independentTimerStartDate == nil {
-            independentTimerStartDate = now
-        }
-        rightNumbers[cellNumber - 1] += 1
-
-        if tappableCellNumbers.contains(cellNumber) {
-            let flashID = UUID()
-            flashingCells[cellNumber] = flashID
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                guard flashingCells[cellNumber] == flashID else { return }
-                flashingCells[cellNumber] = nil
-            }
-        }
-    }
-
-    private func playOneMinuteSoundIfNeeded(at now: Date) {
-        guard let timerStartDate,
-              !didPlayOneMinuteSound,
-              now.timeIntervalSince(timerStartDate) > 60 else { return }
-
-        didPlayOneMinuteSound = true
-        guard let soundURL = Bundle.main.url(
-            forResource: "sport-tracker-audio",
-            withExtension: "m4a"
-        ) else { return }
-
-        do {
-            let player = try AVAudioPlayer(contentsOf: soundURL)
-            player.prepareToPlay()
-            sportTrackerAudioPlayer = player
-            player.play()
-        } catch {
-            sportTrackerAudioPlayer = nil
-        }
     }
 
     private var firstColumnWidth: CGFloat {
@@ -427,120 +349,3 @@ struct SportTrackerView: View {
 
 /// Ripple Effect: expands a cyan ring from the center of a cell after
 /// an accepted tap, then fades the ring out.
-private struct CellRippleEffect: View {
-    let trigger: UUID?
-
-    @State private var progress: CGFloat = 1
-
-    var body: some View {
-        Circle()
-            .stroke(Color(red: 0.45, green: 0.9, blue: 1.0), lineWidth: 2)
-            .scaleEffect(0.15 + progress * 1.35)
-            .opacity(1 - progress)
-            .onChange(of: trigger) { newTrigger in
-                guard newTrigger != nil else { return }
-
-                progress = 0
-                withAnimation(.easeOut(duration: 0.45)) {
-                    progress = 1
-                }
-            }
-    }
-}
-
-/// Color Fill: fills a cell from bottom to top with light cyan after
-/// an accepted tap, then fades the fill out.
-private struct CellColorFillEffect: View {
-    let trigger: UUID?
-
-    @State private var progress: CGFloat = 0
-    @State private var fillOpacity = 0.0
-
-    var body: some View {
-        Rectangle()
-            .fill(Color(red: 0.45, green: 0.9, blue: 1.0).opacity(0.35))
-            .scaleEffect(x: 1, y: progress, anchor: .bottom)
-            .opacity(fillOpacity)
-            .onChange(of: trigger) { newTrigger in
-                guard newTrigger != nil else { return }
-
-                progress = 0
-                fillOpacity = 1
-                withAnimation(.easeOut(duration: 0.22)) {
-                    progress = 1
-                }
-
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.22) {
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        fillOpacity = 0
-                    }
-                }
-            }
-    }
-}
-
-/// Particle Burst: emits ten cyan particles outward from the center
-/// of a cell after an accepted tap.
-private struct CellParticleBurstEffect: View {
-    let trigger: UUID?
-
-    @State private var progress: CGFloat = 1
-
-    var body: some View {
-        GeometryReader { geometry in
-            let distance = min(geometry.size.width, geometry.size.height) * 0.42
-
-            ZStack {
-                ForEach(0..<10, id: \.self) { particle in
-                    let angle = Double(particle) / 10 * Double.pi * 2
-
-                    Circle()
-                        .fill(Color(red: 0.45, green: 0.9, blue: 1.0))
-                        .frame(width: 5, height: 5)
-                        .scaleEffect(1 - progress * 0.6)
-                        .offset(
-                            x: CGFloat(cos(angle)) * distance * progress,
-                            y: CGFloat(sin(angle)) * distance * progress
-                        )
-                        .opacity(1 - progress)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .onChange(of: trigger) { newTrigger in
-            guard newTrigger != nil else { return }
-
-            progress = 0
-            withAnimation(.easeOut(duration: 0.5)) {
-                progress = 1
-            }
-        }
-    }
-}
-
-/// Progress Ring: displays a cyan ring that empties over one second
-/// to show when the cell's tap cooldown will finish.
-private struct CellCooldownRingEffect: View {
-    let trigger: UUID?
-
-    @State private var progress: CGFloat = 1
-
-    var body: some View {
-        Circle()
-            .trim(from: progress, to: 1)
-            .stroke(
-                Color(red: 0.45, green: 0.9, blue: 1.0).opacity(0.9),
-                style: StrokeStyle(lineWidth: 3, lineCap: .round)
-            )
-            .rotationEffect(.degrees(-90))
-            .padding(6)
-            .onChange(of: trigger) { newTrigger in
-                guard newTrigger != nil else { return }
-
-                progress = 0
-                withAnimation(.linear(duration: 1)) {
-                    progress = 1
-                }
-            }
-    }
-}
