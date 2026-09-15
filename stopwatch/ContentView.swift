@@ -547,6 +547,7 @@ struct StopwatchScreen: View {
     @State private var elapsedTime: TimeInterval = 0
     @State private var startDate: Date?
     @State private var laps: [TimeInterval] = []
+    @State private var showingInsta360Recorder = false
 
     private let timer = Timer.publish(every: 0.01, on: .main, in: .common).autoconnect()
 
@@ -579,6 +580,18 @@ struct StopwatchScreen: View {
                 }
             }
 
+            Button {
+                showingInsta360Recorder = true
+            } label: {
+                Label("Open Insta360 Recorder", systemImage: "video.fill")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(Color.orange)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+
             List {
                 ForEach(Array(laps.enumerated()), id: \.offset) { index, lap in
                     HStack {
@@ -598,6 +611,9 @@ struct StopwatchScreen: View {
         .onReceive(timer) { now in
             guard let startDate else { return }
             elapsedTime = now.timeIntervalSince(startDate)
+        }
+        .fullScreenCover(isPresented: $showingInsta360Recorder) {
+            Insta360RecorderScreen()
         }
     }
 
@@ -648,6 +664,35 @@ struct StopwatchScreen: View {
         let centiseconds = totalCentiseconds % 100
 
         return String(format: "%02d:%02d.%02d", minutes, seconds, centiseconds)
+    }
+}
+
+private struct Insta360RecorderScreen: View {
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var recorder = RecorderController()
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Insta360RecorderView()
+                .environmentObject(recorder)
+
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(.black.opacity(0.55), in: Circle())
+            }
+            .accessibilityLabel("Close Insta360 Recorder")
+            .disabled(recorder.isRecording || recorder.isReturningGimbal)
+            .opacity(recorder.isRecording || recorder.isReturningGimbal ? 0.4 : 1)
+            .padding()
+        }
+        .onDisappear {
+            recorder.stop()
+        }
     }
 }
 
