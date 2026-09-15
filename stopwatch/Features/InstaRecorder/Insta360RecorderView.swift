@@ -283,7 +283,12 @@ private struct CameraPreview: UIViewRepresentable {
         return view
     }
 
-    func updateUIView(_ uiView: PreviewView, context: Context) {}
+    func updateUIView(_ uiView: PreviewView, context: Context) {
+        if uiView.videoPreviewLayer.session !== session {
+            uiView.videoPreviewLayer.session = session
+        }
+        uiView.updateVideoOrientation()
+    }
 }
 
 private final class PreviewView: UIView {
@@ -300,7 +305,7 @@ private final class PreviewView: UIView {
         updateVideoOrientation()
     }
 
-    private func updateVideoOrientation() {
+    func updateVideoOrientation() {
         guard let orientation = window?.windowScene?.interfaceOrientation,
               let connection = videoPreviewLayer.connection else { return }
         let angle = correctedVideoRotationAngle(for: orientation)

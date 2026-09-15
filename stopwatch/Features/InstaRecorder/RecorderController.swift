@@ -79,8 +79,12 @@ final class RecorderController: NSObject, ObservableObject {
         _ = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
 
         do {
-            try configureCamera()
-            session.startRunning()
+            if camera == nil {
+                try configureCamera()
+            }
+            if !session.isRunning {
+                session.startRunning()
+            }
             cameraReady = true
             status = gimbalConnected
                 ? "Ready — tap Record."
