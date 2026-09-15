@@ -15,7 +15,7 @@ struct StopwatchView: View {
 
     var body: some View {
         VStack(spacing: 32) {
-            Text(formattedTime(elapsedTime))
+            Text(ElapsedTimeFormatter.centiseconds(elapsedTime))
                 .font(.system(size: 84, weight: .semibold, design: .monospaced))
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
@@ -43,7 +43,7 @@ struct StopwatchView: View {
                     HStack {
                         Text("Lap \(laps.count - index)")
                         Spacer()
-                        Text(formattedTime(lap))
+                        Text(ElapsedTimeFormatter.centiseconds(lap))
                             .fontDesign(.monospaced)
                     }
                 }
@@ -100,12 +100,4 @@ struct StopwatchView: View {
         .disabled(isDisabled)
     }
 
-    private func formattedTime(_ time: TimeInterval) -> String {
-        let totalCentiseconds = Int(time * 100)
-        let minutes = totalCentiseconds / 6_000
-        let seconds = (totalCentiseconds / 100) % 60
-        let centiseconds = totalCentiseconds % 100
-
-        return String(format: "%02d:%02d.%02d", minutes, seconds, centiseconds)
-    }
 }

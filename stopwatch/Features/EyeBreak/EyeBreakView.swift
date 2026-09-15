@@ -23,7 +23,7 @@ struct EyeBreakView: View {
                     .font(.largeTitle.bold())
                     .foregroundStyle(.white)
 
-                Text(formattedTime(elapsedTime))
+                Text(ElapsedTimeFormatter.centiseconds(elapsedTime))
                     .font(.system(size: 72, weight: .semibold, design: .monospaced))
                     .foregroundStyle(.white)
 
@@ -195,14 +195,6 @@ struct EyeBreakView: View {
         }
     }
 
-    private func formattedTime(_ time: TimeInterval) -> String {
-        let totalCentiseconds = Int(time * 100)
-        let minutes = totalCentiseconds / 6_000
-        let seconds = (totalCentiseconds / 100) % 60
-        let centiseconds = totalCentiseconds % 100
-
-        return String(format: "%02d:%02d.%02d", minutes, seconds, centiseconds)
-    }
 }
 
 #Preview {
