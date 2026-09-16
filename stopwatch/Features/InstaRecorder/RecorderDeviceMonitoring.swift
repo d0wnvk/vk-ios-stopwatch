@@ -18,6 +18,7 @@ extension RecorderController {
                         accessory = dock
                         gimbalConnected = true
                         observeGimbalBattery(dock)
+                        observeAccessoryEvents(dock)
                         status = "Ready — tap Record."
                         if !wasConnected {
                             AudioServicesPlaySystemSound(1057)
@@ -25,6 +26,8 @@ extension RecorderController {
                     } else {
                         gimbalBatteryTask?.cancel()
                         gimbalBatteryTask = nil
+                        accessoryEventTask?.cancel()
+                        accessoryEventTask = nil
                         accessory = nil
                         gimbalConnected = false
                         gimbalBatteryLevel = nil
@@ -63,6 +66,22 @@ extension RecorderController {
                 guard !Task.isCancelled else { return }
                 self?.gimbalBatteryLevel = nil
                 self?.gimbalIsCharging = false
+            }
+        }
+    }
+
+    func observeAccessoryEvents(_ dock: DockAccessory) {
+        accessoryEventTask?.cancel()
+        accessoryEventTask = Task { [weak self] in
+            do {
+                for await event in try dock.accessoryEvents {
+                    guard !Task.isCancelled else { return }
+                    guard case let .cameraZoom(factor) = event else { continue }
+                    self?.adjustZoom(fromAccessoryFactor: factor)
+                }
+            } catch {
+                guard !Task.isCancelled else { return }
+                self?.status = "Gimbal controls unavailable: \(error.localizedDescription)"
             }
         }
     }

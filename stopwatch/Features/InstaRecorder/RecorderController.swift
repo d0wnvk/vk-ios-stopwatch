@@ -36,6 +36,7 @@ final class RecorderController: NSObject, ObservableObject {
     var stateTask: Task<Void, Never>?
     var iPhoneBatteryTask: Task<Void, Never>?
     var gimbalBatteryTask: Task<Void, Never>?
+    var accessoryEventTask: Task<Void, Never>?
     var recordingTimerTask: Task<Void, Never>?
     var recordingSequenceTask: Task<Void, Never>?
     var activeStartingOrientation: Vector3D?
@@ -101,6 +102,8 @@ final class RecorderController: NSObject, ObservableObject {
         iPhoneBatteryTask = nil
         gimbalBatteryTask?.cancel()
         gimbalBatteryTask = nil
+        accessoryEventTask?.cancel()
+        accessoryEventTask = nil
         accessory = nil
         gimbalConnected = false
         gimbalBatteryLevel = nil
@@ -196,6 +199,11 @@ final class RecorderController: NSObject, ObservableObject {
         } catch {
             status = "Zoom failed: \(error.localizedDescription)"
         }
+    }
+
+    func adjustZoom(fromAccessoryFactor factor: Double) {
+        let zoomStep: CGFloat = 0.2
+        setZoom(currentZoom + (factor > 0 ? zoomStep : -zoomStep))
     }
 
 

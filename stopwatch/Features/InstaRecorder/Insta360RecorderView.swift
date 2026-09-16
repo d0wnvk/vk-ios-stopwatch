@@ -28,7 +28,7 @@ struct Insta360RecorderView: View {
             VStack(spacing: isCompactHeight ? 6 : 16) {
                 VStack(spacing: isCompactHeight ? 4 : 8) {
                     HStack {
-                        Text("4K · 60 FPS")
+                        Text("1. 4K · 60 FPS")
                             .padding(.horizontal, 10)
                             .padding(.vertical, isCompactHeight ? 6 : 8)
                             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
@@ -37,7 +37,9 @@ struct Insta360RecorderView: View {
                             Circle()
                                 .fill(recorder.gimbalConnected ? .green : .red)
                                 .frame(width: 10, height: 10)
-                            Text(recorder.gimbalConnected ? "Gimbal detected" : "Gimbal not detected")
+                            Text(recorder.gimbalConnected
+                                 ? "2. Gimbal detected"
+                                 : "2. Gimbal not detected")
                         }
                         .accessibilityElement(children: .combine)
                         .accessibilityLabel(recorder.gimbalConnected
@@ -50,6 +52,7 @@ struct Insta360RecorderView: View {
 
                     HStack(spacing: 18) {
                         batteryLabel(
+                            number: 3,
                             title: "iPhone",
                             level: recorder.iPhoneBatteryLevel,
                             systemImage: "iphone"
@@ -59,6 +62,7 @@ struct Insta360RecorderView: View {
                         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
                         Spacer()
                         batteryLabel(
+                            number: 4,
                             title: "Gimbal",
                             level: recorder.gimbalBatteryLevel,
                             systemImage: recorder.gimbalIsCharging
@@ -74,14 +78,15 @@ struct Insta360RecorderView: View {
 
                 Spacer()
 
-                Text(recorder.status)
+                Text("5. \(recorder.status)")
                     .multilineTextAlignment(.center)
                     .font(isCompactHeight ? .caption : .body)
                     .padding(isCompactHeight ? 7 : 12)
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .frame(maxWidth: .infinity, alignment: .trailing)
 
                 if recorder.isRecording {
-                    Text("REC  \(formattedTime(recorder.recordingElapsed, showTenths: true))")
+                    Text("6. REC  \(formattedTime(recorder.recordingElapsed, showTenths: true))")
                         .font(.title3.monospacedDigit().weight(.bold))
                         .foregroundStyle(.red)
                         .padding(.horizontal, 14)
@@ -92,23 +97,24 @@ struct Insta360RecorderView: View {
 
                 HStack(spacing: 8) {
                     Image(systemName: "hand.pinch.fill")
-                    Text(String(format: "%.1f×", recorder.currentZoom))
+                    Text(String(format: "7. %.1f×", recorder.currentZoom))
                         .font(.headline.monospacedDigit())
                         .frame(minWidth: 60)
                         .accessibilityLabel("Current zoom \(String(format: "%.1f", recorder.currentZoom)) times")
 
-                    Text("Pinch preview to zoom")
+                    Text("8. Pinch preview to zoom")
                         .font(.subheadline.weight(.medium))
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, isCompactHeight ? 6 : 10)
                 .background(.ultraThinMaterial, in: Capsule())
+                .frame(maxWidth: .infinity, alignment: .trailing)
 
                 Button {
                     Task { await recorder.rememberRecordOneEndpoint() }
                 } label: {
                     Label(
-                        String(format: "Set End Zoom & Position: %.1f×", recorder.currentZoom),
+                        String(format: "9. Set End Zoom & Position: %.1f×", recorder.currentZoom),
                         systemImage: "checkmark.circle.fill"
                     )
                     .font(.subheadline.weight(.semibold))
@@ -120,15 +126,16 @@ struct Insta360RecorderView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 Text(String(
-                    format: "Record 1 endpoint: %.1f× • gimbal %@",
+                    format: "10. Record 1 endpoint: %.1f× • gimbal %@",
                     recorder.recordOneEndZoom,
                     recorder.recordOneEndOrientation == nil ? "not saved" : "saved"
                 ))
                     .font(.caption.monospacedDigit())
+                    .frame(maxWidth: .infinity, alignment: .trailing)
 
                 HStack(spacing: 12) {
                     Button(action: recorder.record) {
-                        Label(operationLabel(default: "Record 1"),
+                        Label(operationLabel(number: 11, default: "Record 1"),
                               systemImage: recorder.isRecording ? "record.circle.fill" : "arrow.up.right.video.fill")
                             .font(.headline)
                             .frame(minHeight: isCompactHeight ? 42 : 52)
@@ -139,7 +146,7 @@ struct Insta360RecorderView: View {
                     .accessibilityLabel("Record delayed upward tilt and zoom-out shot")
 
                     Button(action: recorder.recordVerticalZoomOut) {
-                        Label(operationLabel(default: "Record 2"),
+                        Label(operationLabel(number: 12, default: "Record 2"),
                               systemImage: recorder.isRecording ? "record.circle.fill" : "arrow.up.video.fill")
                             .font(.headline)
                             .frame(minHeight: isCompactHeight ? 42 : 52)
@@ -150,7 +157,7 @@ struct Insta360RecorderView: View {
                     .accessibilityLabel("Record vertical tilt and zoom-out shot")
 
                     Button(action: recorder.cancelRecording) {
-                        Label("Stop", systemImage: "stop.fill")
+                        Label("13. Stop", systemImage: "stop.fill")
                             .font(.headline)
                             .frame(minHeight: isCompactHeight ? 42 : 52)
                     }
@@ -164,7 +171,7 @@ struct Insta360RecorderView: View {
                 Button {
                     showingPlayer = true
                 } label: {
-                    Label("Library", systemImage: "play.rectangle.fill")
+                    Label("14. Library", systemImage: "play.rectangle.fill")
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.black.opacity(0.5))
@@ -185,17 +192,18 @@ struct Insta360RecorderView: View {
 
     private var isCompactHeight: Bool { verticalSizeClass == .compact }
 
-    private func operationLabel(default defaultLabel: String) -> String {
-        if recorder.isRecording { return "Recording…" }
-        if recorder.isReturningGimbal { return "Returning…" }
-        return defaultLabel
+    private func operationLabel(number: Int, default defaultLabel: String) -> String {
+        if recorder.isRecording { return "\(number). Recording…" }
+        if recorder.isReturningGimbal { return "\(number). Returning…" }
+        return "\(number). \(defaultLabel)"
     }
 
-    private func batteryLabel(title: String,
+    private func batteryLabel(number: Int,
+                              title: String,
                               level: Int?,
                               systemImage: String) -> some View {
         Label {
-            Text("\(title) \(level.map { "\($0)%" } ?? "—")")
+            Text("\(number). \(title) \(level.map { "\($0)%" } ?? "—")")
                 .monospacedDigit()
         } icon: {
             Image(systemName: systemImage)
@@ -226,7 +234,7 @@ private struct RecordingPlayer: View {
                     Button {
                         dismiss()
                     } label: {
-                        Label("Back", systemImage: "chevron.left")
+                        Label("15. Back", systemImage: "chevron.left")
                             .font(.headline)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 10)
@@ -239,7 +247,7 @@ private struct RecordingPlayer: View {
 
                 Spacer()
 
-                Text("\(formattedTime(currentTime)) / \(formattedTime(duration))")
+                Text("16. \(formattedTime(currentTime)) / \(formattedTime(duration))")
                     .font(.headline.monospacedDigit())
                     .foregroundStyle(.white)
                     .padding(.horizontal, 14)
