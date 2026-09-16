@@ -64,5 +64,90 @@ extension RecorderController {
         }
     }
 
+    func focusAndExpose(at point: CGPoint, lockAfterAdjustment: Bool) {
+        guard cameraReady, !isRecording, let camera else { return }
+        focusLockTask?.cancel()
+
+        do {
+            try camera.lockForConfiguration()
+
+            if camera.isFocusPointOfInterestSupported {
+                camera.focusPointOfInterest = point
+            }
+            if camera.isFocusModeSupported(.autoFocus) {
+                camera.focusMode = .autoFocus
+            }
+
+            if camera.isExposurePointOfInterestSupported {
+                camera.exposurePointOfInterest = point
+            }
+            if camera.isExposureModeSupported(.autoExpose) {
+                camera.exposureMode = .autoExpose
+            }
+
+            camera.unlockForConfiguration()
+            status = lockAfterAdjustment
+                ? "Focusing before AE/AF lock…"
+                : "Focus and exposure point set."
+        } catch {
+            status = "Focus failed: \(error.localizedDescription)"
+            return
+        }
+
+        guard lockAfterAdjustment else { return }
+        focusLockTask = Task { [weak self] in
+            guard let self else { return }
+
+            for _ in 0..<40 {
+                guard !Task.isCancelled else { return }
+                if !camera.isAdjustingFocus && !camera.isAdjustingExposure { break }
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+
+            guard !Task.isCancelled else { return }
+            do {
+                try camera.lockForConfiguration()
+                if camera.isFocusModeSupported(.locked) {
+                    camera.focusMode = .locked
+                }
+                if camera.isExposureModeSupported(.locked) {
+                    camera.exposureMode = .locked
+                }
+                camera.unlockForConfiguration()
+                status = "Focus and exposure locked."
+            } catch {
+                status = "AE/AF lock failed: \(error.localizedDescription)"
+            }
+            focusLockTask = nil
+        }
+    }
+
+    func restoreContinuousFocusAndExposure() {
+        guard cameraReady, !isRecording, let camera else { return }
+        focusLockTask?.cancel()
+        focusLockTask = nil
+
+        do {
+            try camera.lockForConfiguration()
+            let center = CGPoint(x: 0.5, y: 0.5)
+            if camera.isFocusPointOfInterestSupported {
+                camera.focusPointOfInterest = center
+            }
+            if camera.isFocusModeSupported(.continuousAutoFocus) {
+                camera.focusMode = .continuousAutoFocus
+            }
+            if camera.isExposurePointOfInterestSupported {
+                camera.exposurePointOfInterest = center
+            }
+            if camera.isExposureModeSupported(.continuousAutoExposure) {
+                camera.exposureMode = .continuousAutoExposure
+            }
+            camera.unlockForConfiguration()
+            status = "Continuous autofocus and exposure restored."
+        } catch {
+            status = "Restoring autofocus failed: \(error.localizedDescription)"
+        }
+    }
+
 
 }

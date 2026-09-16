@@ -10,7 +10,18 @@ struct Insta360RecorderView: View {
 
     var body: some View {
         ZStack {
-            CameraPreview(session: recorder.session)
+            CameraPreview(
+                session: recorder.session,
+                onFocus: { cameraPoint in
+                    recorder.focusAndExpose(at: cameraPoint, lockAfterAdjustment: false)
+                },
+                onFocusLock: { cameraPoint in
+                    recorder.focusAndExpose(at: cameraPoint, lockAfterAdjustment: true)
+                },
+                onFocusReset: {
+                    recorder.restoreContinuousFocusAndExposure()
+                }
+            )
                 .ignoresSafeArea()
                 .gesture(
                     MagnifyGesture()
@@ -283,25 +294,142 @@ private func formattedTime(_ interval: TimeInterval, showTenths: Bool = false) -
 
 private struct CameraPreview: UIViewRepresentable {
     let session: AVCaptureSession
+    let onFocus: (CGPoint) -> Void
+    let onFocusLock: (CGPoint) -> Void
+    let onFocusReset: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(
+            onFocus: onFocus,
+            onFocusLock: onFocusLock,
+            onFocusReset: onFocusReset
+        )
+    }
 
     func makeUIView(context: Context) -> PreviewView {
         let view = PreviewView()
         view.videoPreviewLayer.session = session
         view.videoPreviewLayer.videoGravity = .resizeAspectFill
+        context.coordinator.installGestures(on: view)
         return view
     }
 
     func updateUIView(_ uiView: PreviewView, context: Context) {
+        context.coordinator.onFocus = onFocus
+        context.coordinator.onFocusLock = onFocusLock
+        context.coordinator.onFocusReset = onFocusReset
         if uiView.videoPreviewLayer.session !== session {
             uiView.videoPreviewLayer.session = session
         }
         uiView.updateVideoOrientation()
     }
+
+    final class Coordinator: NSObject {
+        var onFocus: (CGPoint) -> Void
+        var onFocusLock: (CGPoint) -> Void
+        var onFocusReset: () -> Void
+
+        init(
+            onFocus: @escaping (CGPoint) -> Void,
+            onFocusLock: @escaping (CGPoint) -> Void,
+            onFocusReset: @escaping () -> Void
+        ) {
+            self.onFocus = onFocus
+            self.onFocusLock = onFocusLock
+            self.onFocusReset = onFocusReset
+        }
+
+        func installGestures(on view: PreviewView) {
+            let singleTap = UITapGestureRecognizer(target: self, action: #selector(focus(_:)))
+            let doubleTap = UITapGestureRecognizer(target: self, action: #selector(resetFocus(_:)))
+            doubleTap.numberOfTapsRequired = 2
+            singleTap.require(toFail: doubleTap)
+
+            let longPress = UILongPressGestureRecognizer(target: self, action: #selector(lockFocus(_:)))
+            longPress.minimumPressDuration = 0.6
+            singleTap.require(toFail: longPress)
+
+            view.addGestureRecognizer(singleTap)
+            view.addGestureRecognizer(doubleTap)
+            view.addGestureRecognizer(longPress)
+        }
+
+        @objc private func focus(_ gesture: UITapGestureRecognizer) {
+            guard let view = gesture.view as? PreviewView else { return }
+            let previewPoint = gesture.location(in: view)
+            let cameraPoint = view.videoPreviewLayer.captureDevicePointConverted(
+                fromLayerPoint: previewPoint
+            )
+            view.showFocusReticle(at: previewPoint, isLocked: false)
+            onFocus(cameraPoint)
+        }
+
+        @objc private func lockFocus(_ gesture: UILongPressGestureRecognizer) {
+            guard gesture.state == .began, let view = gesture.view as? PreviewView else { return }
+            let previewPoint = gesture.location(in: view)
+            let cameraPoint = view.videoPreviewLayer.captureDevicePointConverted(
+                fromLayerPoint: previewPoint
+            )
+            view.showFocusReticle(at: previewPoint, isLocked: true)
+            onFocusLock(cameraPoint)
+        }
+
+        @objc private func resetFocus(_ gesture: UITapGestureRecognizer) {
+            guard gesture.state == .ended else { return }
+            (gesture.view as? PreviewView)?.hideFocusReticle()
+            onFocusReset()
+        }
+    }
 }
 
 private final class PreviewView: UIView {
+    private let focusReticleView = UIView(frame: CGRect(x: 0, y: 0, width: 68, height: 68))
+    private let focusLockImageView = UIImageView(image: UIImage(systemName: "lock.fill"))
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        configureFocusReticle()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        configureFocusReticle()
+    }
+
     override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }
     var videoPreviewLayer: AVCaptureVideoPreviewLayer { layer as! AVCaptureVideoPreviewLayer }
+
+    func showFocusReticle(at point: CGPoint, isLocked: Bool) {
+        focusReticleView.center = point
+        focusLockImageView.isHidden = !isLocked
+        focusReticleView.accessibilityLabel = isLocked
+            ? "Focus and exposure locked"
+            : "Focus point"
+        focusReticleView.isHidden = false
+    }
+
+    func hideFocusReticle() {
+        focusReticleView.isHidden = true
+    }
+
+    private func configureFocusReticle() {
+        focusReticleView.isHidden = true
+        focusReticleView.isUserInteractionEnabled = false
+        focusReticleView.layer.borderColor = UIColor.systemYellow.cgColor
+        focusReticleView.layer.borderWidth = 2
+        focusReticleView.layer.cornerRadius = 6
+        focusReticleView.layer.shadowColor = UIColor.black.cgColor
+        focusReticleView.layer.shadowOpacity = 0.7
+        focusReticleView.layer.shadowRadius = 2
+        focusReticleView.layer.shadowOffset = .zero
+
+        focusLockImageView.tintColor = .systemYellow
+        focusLockImageView.contentMode = .center
+        focusLockImageView.frame = focusReticleView.bounds
+        focusLockImageView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        focusReticleView.addSubview(focusLockImageView)
+        addSubview(focusReticleView)
+    }
 
     override func didMoveToWindow() {
         super.didMoveToWindow()

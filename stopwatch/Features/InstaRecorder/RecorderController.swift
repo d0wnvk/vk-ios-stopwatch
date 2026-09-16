@@ -37,6 +37,7 @@ final class RecorderController: NSObject, ObservableObject {
     var iPhoneBatteryTask: Task<Void, Never>?
     var gimbalBatteryTask: Task<Void, Never>?
     var accessoryEventTask: Task<Void, Never>?
+    var focusLockTask: Task<Void, Never>?
     var recordingTimerTask: Task<Void, Never>?
     var recordingSequenceTask: Task<Void, Never>?
     var activeStartingOrientation: Vector3D?
@@ -104,6 +105,8 @@ final class RecorderController: NSObject, ObservableObject {
         gimbalBatteryTask = nil
         accessoryEventTask?.cancel()
         accessoryEventTask = nil
+        focusLockTask?.cancel()
+        focusLockTask = nil
         accessory = nil
         gimbalConnected = false
         gimbalBatteryLevel = nil

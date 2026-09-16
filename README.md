@@ -61,3 +61,28 @@ After round 16, the sequence repeats from round 1.
 The app uses Core Haptics when the device supports it. If Core Haptics is
 unavailable or fails, the same timing pattern is reproduced with heavy impact
 feedback.
+
+## Insta recorder
+
+### Camera focus and exposure
+
+The camera preview supports direct focus and exposure control:
+
+- **Single tap** sets a one-shot autofocus and autoexposure point. A yellow
+  reticle marks the selected point.
+- **Long press** focuses and exposes at that point, then locks both settings.
+  The yellow reticle displays a lock icon while AE/AF lock is selected.
+- **Double tap** removes the reticle and restores centered continuous
+  autofocus and autoexposure.
+
+Focus gestures are disabled while a scripted recording is running, preventing
+focus changes from disturbing the programmed gimbal and zoom sequence. Set or
+lock focus before starting a recording when a consistent cinematic focus is
+required.
+
+### Gimbal zoom wheel
+
+When the Insta360 Flow 2 Pro is docked, its zoom wheel adjusts camera zoom in
+`0.2×` increments. DockKit reports a positive event for zoom-in and a zero or
+negative event for zoom-out. Wheel input is disabled during scripted recordings
+to avoid conflicting with their programmed zoom animation.
