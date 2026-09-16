@@ -107,14 +107,16 @@ struct Insta360RecorderView: View {
                 }
 
                 HStack(spacing: 8) {
-                    Image(systemName: "hand.pinch.fill")
-                    Text(String(format: "7. %.1f×", recorder.currentZoom))
+                    Text(String(
+                        format: "7. %.1f× · %@",
+                        recorder.displayedZoom,
+                        recorder.activeCameraName
+                    ))
                         .font(.headline.monospacedDigit())
-                        .frame(minWidth: 60)
-                        .accessibilityLabel("Current zoom \(String(format: "%.1f", recorder.currentZoom)) times")
-
-                    Text("8. Pinch preview to zoom")
-                        .font(.subheadline.weight(.medium))
+                        .accessibilityLabel(
+                            "Current zoom \(String(format: "%.1f", recorder.displayedZoom)) times, "
+                            + "using the \(recorder.activeCameraName) camera"
+                        )
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, isCompactHeight ? 6 : 10)

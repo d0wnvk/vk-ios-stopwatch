@@ -21,6 +21,7 @@ final class RecorderController: NSObject, ObservableObject {
     @Published var isReturningGimbal = false
     @Published var recordingElapsed: TimeInterval = 0
     @Published var currentZoom: CGFloat = 1.0
+    @Published var activeCameraName = "Camera"
     @Published var recordOneEndZoom: CGFloat = 2.0
     @Published var recordOneEndOrientation: Vector3D?
     @Published var lastRecordingURL: URL?
@@ -28,6 +29,9 @@ final class RecorderController: NSObject, ObservableObject {
     var canAttemptRecording: Bool { !isRecording && !isReturningGimbal }
     var canAdjustZoom: Bool { cameraReady && !isRecording && !isReturningGimbal }
     var canSetRecordOneEndpoint: Bool { canAdjustZoom && gimbalConnected }
+    var displayedZoom: CGFloat {
+        currentZoom * (camera?.displayVideoZoomFactorMultiplier ?? 1)
+    }
 
     let movieOutput = AVCaptureMovieFileOutput()
     var camera: AVCaptureDevice?
@@ -38,6 +42,7 @@ final class RecorderController: NSObject, ObservableObject {
     var gimbalBatteryTask: Task<Void, Never>?
     var accessoryEventTask: Task<Void, Never>?
     var focusLockTask: Task<Void, Never>?
+    var activeCameraObservation: NSKeyValueObservation?
     var recordingTimerTask: Task<Void, Never>?
     var recordingSequenceTask: Task<Void, Never>?
     var activeStartingOrientation: Vector3D?
@@ -107,6 +112,8 @@ final class RecorderController: NSObject, ObservableObject {
         accessoryEventTask = nil
         focusLockTask?.cancel()
         focusLockTask = nil
+        activeCameraObservation?.invalidate()
+        activeCameraObservation = nil
         accessory = nil
         gimbalConnected = false
         gimbalBatteryLevel = nil

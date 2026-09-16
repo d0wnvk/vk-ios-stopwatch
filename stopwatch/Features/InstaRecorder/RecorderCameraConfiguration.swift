@@ -44,6 +44,16 @@ extension RecorderController {
         device.activeFormat = format
         device.activeVideoMinFrameDuration = CMTime(value: 1, timescale: 60)
         device.activeVideoMaxFrameDuration = CMTime(value: 1, timescale: 60)
+        if device.primaryConstituentDeviceSwitchingBehavior != .unsupported {
+            device.setPrimaryConstituentDeviceSwitchingBehavior(
+                .auto,
+                restrictedSwitchingBehaviorConditions: []
+            )
+            movieOutput.setPrimaryConstituentDeviceSwitchingBehaviorForRecording(
+                .auto,
+                restrictedSwitchingBehaviorConditions: []
+            )
+        }
         device.unlockForConfiguration()
 
         if let connection = movieOutput.connection(with: .video), connection.isVideoStabilizationSupported {
@@ -51,6 +61,7 @@ extension RecorderController {
         }
         camera = device
         currentZoom = device.videoZoomFactor
+        observeActiveCamera(on: device)
     }
 
     func requestCameraPermission() async -> Bool {
@@ -64,6 +75,34 @@ extension RecorderController {
         }
     }
 
+    func observeActiveCamera(on device: AVCaptureDevice) {
+        activeCameraObservation?.invalidate()
+        updateActiveCameraName(for: device)
+        activeCameraObservation = device.observe(
+            \.activePrimaryConstituent,
+            options: [.new]
+        ) { [weak self, weak device] _, _ in
+            Task { @MainActor in
+                guard let self, let device else { return }
+                self.updateActiveCameraName(for: device)
+            }
+        }
+    }
+
+    private func updateActiveCameraName(for device: AVCaptureDevice) {
+        let activeCamera = device.activePrimaryConstituent ?? device
+        switch activeCamera.deviceType {
+        case .builtInUltraWideCamera:
+            activeCameraName = "Ultra Wide"
+        case .builtInWideAngleCamera:
+            activeCameraName = "Wide"
+        case .builtInTelephotoCamera:
+            activeCameraName = "Telephoto"
+        default:
+            activeCameraName = activeCamera.localizedName
+        }
+    }
+
     func focusAndExpose(at point: CGPoint, lockAfterAdjustment: Bool) {
         guard cameraReady, !isRecording, let camera else { return }
         focusLockTask?.cancel()
@@ -71,10 +110,14 @@ extension RecorderController {
         do {
             try camera.lockForConfiguration()
 
-            if camera.isFocusPointOfInterestSupported {
+            let supportsFocusPoint = camera.isFocusPointOfInterestSupported
+            if supportsFocusPoint {
                 camera.focusPointOfInterest = point
             }
-            if camera.isFocusModeSupported(.autoFocus) {
+
+            if camera.isFocusModeSupported(.continuousAutoFocus) {
+                camera.focusMode = .continuousAutoFocus
+            } else if camera.isFocusModeSupported(.autoFocus) {
                 camera.focusMode = .autoFocus
             }
 
@@ -86,9 +129,14 @@ extension RecorderController {
             }
 
             camera.unlockForConfiguration()
+            guard supportsFocusPoint else {
+                status = "This camera does not support touch focus points."
+                return
+            }
+
             status = lockAfterAdjustment
                 ? "Focusing before AE/AF lock…"
-                : "Focus and exposure point set."
+                : "Continuous focus and exposure point set."
         } catch {
             status = "Focus failed: \(error.localizedDescription)"
             return

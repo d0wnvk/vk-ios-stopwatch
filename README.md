@@ -68,8 +68,8 @@ feedback.
 
 The camera preview supports direct focus and exposure control:
 
-- **Single tap** sets a one-shot autofocus and autoexposure point. A yellow
-  reticle marks the selected point.
+- **Single tap** moves continuous autofocus and autoexposure to the selected
+  point. A yellow reticle marks the selected point.
 - **Long press** focuses and exposes at that point, then locks both settings.
   The yellow reticle displays a lock icon while AE/AF lock is selected.
 - **Double tap** removes the reticle and restores centered continuous
@@ -85,4 +85,9 @@ required.
 When the Insta360 Flow 2 Pro is docked, its zoom wheel adjusts camera zoom in
 `0.2×` increments. DockKit reports a positive event for zoom-in and a zero or
 negative event for zoom-out. Wheel input is disabled during scripted recordings
-to avoid conflicting with their programmed zoom animation.
+to avoid conflicting with their programmed zoom animation. The zoom indicator
+also shows the physical camera currently selected by the iPhone's virtual camera,
+such as `Wide` or `Telephoto`. Its zoom value uses Apple's display multiplier so
+it matches the scale shown by the native Camera app. Constituent-camera switching
+uses AVFoundation's automatic policy, matching the native Camera app's lens
+selection based on zoom, available light, and focus distance.
