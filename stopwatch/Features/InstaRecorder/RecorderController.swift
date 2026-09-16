@@ -7,6 +7,14 @@ import Spatial
 import SwiftUI
 import UIKit
 
+enum FocusFeedbackState: Equatable {
+    case hidden
+    case focusing
+    case focused
+    case failed
+    case locked
+}
+
 /// Owns the camera and Insta360 DockKit recording workflow.
 @MainActor
 final class RecorderController: NSObject, ObservableObject {
@@ -22,6 +30,7 @@ final class RecorderController: NSObject, ObservableObject {
     @Published var recordingElapsed: TimeInterval = 0
     @Published var currentZoom: CGFloat = 1.0
     @Published var activeCameraName = "Camera"
+    @Published var focusFeedback: FocusFeedbackState = .hidden
     @Published var recordOneEndZoom: CGFloat = 2.0
     @Published var recordOneEndOrientation: Vector3D?
     @Published var lastRecordingURL: URL?
@@ -113,6 +122,7 @@ final class RecorderController: NSObject, ObservableObject {
         accessoryEventTask = nil
         focusLockTask?.cancel()
         focusLockTask = nil
+        focusFeedback = .hidden
         activeCameraObservation?.invalidate()
         activeCameraObservation = nil
         activePhysicalCameraID = nil

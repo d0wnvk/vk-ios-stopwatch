@@ -75,6 +75,16 @@ The camera preview supports direct focus and exposure control:
 - **Double tap** removes the reticle and restores centered continuous
   autofocus and autoexposure.
 
+The reticle reports the inferred focus result:
+
+- **Yellow** means the camera is adjusting focus.
+- **Green** means focus stopped adjusting and appears to have settled.
+- **Red** means focus was still adjusting after two seconds. Try moving farther
+  from the subject, selecting another point, or changing zoom.
+
+AVFoundation does not provide a definitive focus-failed result, so the red state
+is based on a two-second timeout rather than an optical sharpness measurement.
+
 Focus gestures are disabled while a scripted recording is running, preventing
 focus changes from disturbing the programmed gimbal and zoom sequence. Set or
 lock focus before starting a recording when a consistent cinematic focus is

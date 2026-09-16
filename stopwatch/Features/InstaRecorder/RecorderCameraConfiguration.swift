@@ -150,6 +150,7 @@ extension RecorderController {
     func focusAndExpose(at point: CGPoint, lockAfterAdjustment: Bool) {
         guard cameraReady, !isRecording, let camera else { return }
         focusLockTask?.cancel()
+        focusFeedback = .focusing
 
         do {
             try camera.lockForConfiguration()
@@ -175,6 +176,7 @@ extension RecorderController {
             camera.unlockForConfiguration()
             guard supportsFocusPoint else {
                 status = "This camera does not support touch focus points."
+                focusFeedback = .failed
                 return
             }
 
@@ -183,20 +185,38 @@ extension RecorderController {
                 : "Continuous focus and exposure point set."
         } catch {
             status = "Focus failed: \(error.localizedDescription)"
+            focusFeedback = .failed
             return
         }
 
-        guard lockAfterAdjustment else { return }
         focusLockTask = Task { [weak self] in
             guard let self else { return }
 
+            var focusSettled = false
             for _ in 0..<40 {
                 guard !Task.isCancelled else { return }
-                if !camera.isAdjustingFocus && !camera.isAdjustingExposure { break }
                 try? await Task.sleep(for: .milliseconds(50))
+                if !camera.isAdjustingFocus {
+                    focusSettled = true
+                    break
+                }
             }
 
             guard !Task.isCancelled else { return }
+            guard focusSettled else {
+                focusFeedback = .failed
+                status = "Unable to focus. Move farther away, select another point, or change zoom."
+                focusLockTask = nil
+                return
+            }
+
+            guard lockAfterAdjustment else {
+                focusFeedback = .focused
+                status = "Focus settled."
+                focusLockTask = nil
+                return
+            }
+
             do {
                 try camera.lockForConfiguration()
                 if camera.isFocusModeSupported(.locked) {
@@ -206,8 +226,10 @@ extension RecorderController {
                     camera.exposureMode = .locked
                 }
                 camera.unlockForConfiguration()
+                focusFeedback = .locked
                 status = "Focus and exposure locked."
             } catch {
+                focusFeedback = .failed
                 status = "AE/AF lock failed: \(error.localizedDescription)"
             }
             focusLockTask = nil
@@ -218,6 +240,7 @@ extension RecorderController {
         guard cameraReady, !isRecording, let camera else { return }
         focusLockTask?.cancel()
         focusLockTask = nil
+        focusFeedback = .hidden
 
         do {
             try camera.lockForConfiguration()
@@ -237,6 +260,7 @@ extension RecorderController {
             camera.unlockForConfiguration()
             status = "Continuous autofocus and exposure restored."
         } catch {
+            focusFeedback = .failed
             status = "Restoring autofocus failed: \(error.localizedDescription)"
         }
     }

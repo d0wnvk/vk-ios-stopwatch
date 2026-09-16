@@ -12,6 +12,7 @@ struct Insta360RecorderView: View {
         ZStack {
             CameraPreview(
                 session: recorder.session,
+                focusFeedback: recorder.focusFeedback,
                 onFocus: { cameraPoint in
                     recorder.focusAndExpose(at: cameraPoint, lockAfterAdjustment: false)
                 },
@@ -296,6 +297,7 @@ private func formattedTime(_ interval: TimeInterval, showTenths: Bool = false) -
 
 private struct CameraPreview: UIViewRepresentable {
     let session: AVCaptureSession
+    let focusFeedback: FocusFeedbackState
     let onFocus: (CGPoint) -> Void
     let onFocusLock: (CGPoint) -> Void
     let onFocusReset: () -> Void
@@ -323,6 +325,7 @@ private struct CameraPreview: UIViewRepresentable {
         if uiView.videoPreviewLayer.session !== session {
             uiView.videoPreviewLayer.session = session
         }
+        uiView.applyFocusFeedback(focusFeedback)
         uiView.updateVideoOrientation()
     }
 
@@ -387,6 +390,7 @@ private struct CameraPreview: UIViewRepresentable {
 private final class PreviewView: UIView {
     private let focusReticleView = UIView(frame: CGRect(x: 0, y: 0, width: 68, height: 68))
     private let focusLockImageView = UIImageView(image: UIImage(systemName: "lock.fill"))
+    private var lockRequested = false
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -403,15 +407,42 @@ private final class PreviewView: UIView {
 
     func showFocusReticle(at point: CGPoint, isLocked: Bool) {
         focusReticleView.center = point
+        lockRequested = isLocked
         focusLockImageView.isHidden = !isLocked
-        focusReticleView.accessibilityLabel = isLocked
-            ? "Focus and exposure locked"
-            : "Focus point"
         focusReticleView.isHidden = false
+        applyFocusFeedback(.focusing)
     }
 
     func hideFocusReticle() {
+        lockRequested = false
         focusReticleView.isHidden = true
+    }
+
+    func applyFocusFeedback(_ state: FocusFeedbackState) {
+        guard !focusReticleView.isHidden || state == .hidden else { return }
+
+        let color: UIColor
+        switch state {
+        case .hidden:
+            hideFocusReticle()
+            return
+        case .focusing:
+            color = .systemYellow
+            focusReticleView.accessibilityLabel = "Focusing"
+        case .focused:
+            color = .systemGreen
+            focusReticleView.accessibilityLabel = "Focus settled"
+        case .failed:
+            color = .systemRed
+            focusReticleView.accessibilityLabel = "Unable to focus"
+        case .locked:
+            color = .systemGreen
+            focusReticleView.accessibilityLabel = "Focus and exposure locked"
+        }
+
+        focusReticleView.layer.borderColor = color.cgColor
+        focusLockImageView.tintColor = color
+        focusLockImageView.isHidden = !lockRequested
     }
 
     private func configureFocusReticle() {
