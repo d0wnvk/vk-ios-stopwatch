@@ -91,3 +91,25 @@ such as `Wide` or `Telephoto`. Its zoom value uses Apple's display multiplier so
 it matches the scale shown by the native Camera app. Constituent-camera switching
 uses AVFoundation's automatic policy, matching the native Camera app's lens
 selection based on zoom, available light, and focus distance.
+
+Each physical camera is also protected by a zoom-range gate derived from the
+iPhone's `virtualDeviceSwitchOverVideoZoomFactors`. If focus or exposure forces
+the virtual camera to fall back to a shorter lens, the app moves zoom into that
+lens's optical range as well. For example, a close focus that changes Telephoto
+to Wide may change `5.8×` to `4.9×`, avoiding an excessively cropped Wide image.
+
+The zoom-range gate has these rules:
+
+- It runs whenever AVFoundation reports that the active physical camera changed.
+- Its lower and upper limits come from the connected iPhone's own virtual-camera
+  switch-over factors rather than fixed values, so the limits can differ between
+  iPhone models.
+- If the current zoom is outside the newly selected camera's range, the app
+  clamps it to the nearest boundary and shows the adjusted zoom in the status
+  indicator.
+- The gate runs only after AVFoundation reports a real physical-camera change.
+  It does not clamp ordinary upward zoom before a switch-over boundary, because
+  doing so would prevent the Wide camera from reaching the point where iOS can
+  switch to Telephoto.
+- It does not adjust zoom during an active recording, because changing zoom at
+  that moment would create an unexpected visible jump in the recorded video.

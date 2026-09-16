@@ -43,6 +43,7 @@ final class RecorderController: NSObject, ObservableObject {
     var accessoryEventTask: Task<Void, Never>?
     var focusLockTask: Task<Void, Never>?
     var activeCameraObservation: NSKeyValueObservation?
+    var activePhysicalCameraID: String?
     var recordingTimerTask: Task<Void, Never>?
     var recordingSequenceTask: Task<Void, Never>?
     var activeStartingOrientation: Vector3D?
@@ -114,6 +115,7 @@ final class RecorderController: NSObject, ObservableObject {
         focusLockTask = nil
         activeCameraObservation?.invalidate()
         activeCameraObservation = nil
+        activePhysicalCameraID = nil
         accessory = nil
         gimbalConnected = false
         gimbalBatteryLevel = nil

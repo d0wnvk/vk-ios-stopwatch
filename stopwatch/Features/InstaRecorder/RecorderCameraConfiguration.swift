@@ -91,6 +91,9 @@ extension RecorderController {
 
     private func updateActiveCameraName(for device: AVCaptureDevice) {
         let activeCamera = device.activePrimaryConstituent ?? device
+        let previousCameraID = activePhysicalCameraID
+        activePhysicalCameraID = activeCamera.uniqueID
+
         switch activeCamera.deviceType {
         case .builtInUltraWideCamera:
             activeCameraName = "Ultra Wide"
@@ -101,6 +104,47 @@ extension RecorderController {
         default:
             activeCameraName = activeCamera.localizedName
         }
+
+        // Only clamp after AVFoundation actually changes physical lenses. Doing
+        // this for ordinary zoom input would prevent the zoom from crossing a
+        // switch-over boundary and make the longer lens unreachable.
+        if let previousCameraID, previousCameraID != activeCamera.uniqueID {
+            enforceZoomRange(for: activeCamera, on: device)
+        }
+    }
+
+    private func enforceZoomRange(
+        for activeCamera: AVCaptureDevice,
+        on virtualCamera: AVCaptureDevice
+    ) {
+        guard cameraReady, !isRecording, virtualCamera.isVirtualDevice else { return }
+        guard let activeIndex = virtualCamera.constituentDevices.firstIndex(where: {
+            $0.uniqueID == activeCamera.uniqueID
+        }) else { return }
+
+        let switchFactors = virtualCamera.virtualDeviceSwitchOverVideoZoomFactors.map {
+            CGFloat(truncating: $0)
+        }
+        let lowerBound = activeIndex == 0
+            ? virtualCamera.minAvailableVideoZoomFactor
+            : switchFactors[activeIndex - 1]
+
+        let displayMultiplier = virtualCamera.displayVideoZoomFactorMultiplier
+        let internalStepForDisplayedTenth = 0.1 / max(displayMultiplier, 0.001)
+        let upperBound = activeIndex < switchFactors.count
+            ? max(lowerBound, switchFactors[activeIndex] - internalStepForDisplayedTenth)
+            : virtualCamera.maxAvailableVideoZoomFactor
+
+        let currentFactor = virtualCamera.videoZoomFactor
+        let gatedFactor = min(max(currentFactor, lowerBound), upperBound)
+        guard abs(gatedFactor - currentFactor) > 0.001 else { return }
+
+        setZoom(gatedFactor)
+        status = String(
+            format: "%@ camera selected; zoom adjusted to %.1f×.",
+            activeCameraName,
+            gatedFactor * displayMultiplier
+        )
     }
 
     func focusAndExpose(at point: CGPoint, lockAfterAdjustment: Bool) {
