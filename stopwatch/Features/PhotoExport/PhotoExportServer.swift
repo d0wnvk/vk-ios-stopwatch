@@ -152,7 +152,10 @@ final class PhotoExportServer: ObservableObject {
                     for (resourceIndex, resource) in originals.enumerated() {
                         let id = "\(assetID)-\(resourceIndex)"
                         resources[id] = resource
+                        let durationSeconds = max(0, Int(asset.duration.rounded()))
+                        let duration = String(format: "%02d-%02d", durationSeconds / 60, durationSeconds % 60)
                         files.append(["id": id, "name": resource.originalFilename, "resourceType": resource.type.rawValue,
+                                      "duration": duration,
                                       "captured": ISO8601DateFormatter().string(from: asset.creationDate ?? start)])
                     }
                 }

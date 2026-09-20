@@ -45,8 +45,16 @@ def checksum(path):
     return digest.hexdigest()
 
 
-def available_target(folder, name, expected):
-    """Return the original name, adding a numeric suffix only on a collision."""
+def export_name(name, duration):
+    source = Path(name)
+    if not re.fullmatch(r'\d{2,}-[0-5]\d', duration):
+        raise ValueError('Invalid duration from iPhone.')
+    return f'{source.stem}-{duration}{source.suffix}'
+
+
+def available_target(folder, name, duration, expected):
+    """Return original name plus duration, adding a suffix only on collision."""
+    name = export_name(name, duration)
     source = Path(name)
     stem, suffix = source.stem, source.suffix
     for number in range(1, 10000):
@@ -112,7 +120,7 @@ class Client:
                     os.fsync(stream.fileno())
             if received != size or digest.hexdigest() != expected:
                 raise ValueError('Incomplete or damaged download; checksum/length verification failed.')
-            target = available_target(folder, entry['name'], expected)
+            target = available_target(folder, entry['name'], entry['duration'], expected)
             try:
                 os.link(partial, target)  # atomic and never overwrites
             except FileExistsError:
@@ -127,6 +135,9 @@ def validate_entry(entry):
     if not isinstance(entry, dict) or not re.fullmatch(r'[a-f0-9]{64}-[0-9]{1,5}', str(entry.get('id', ''))):
         raise ValueError('Invalid file ID from iPhone.')
     name = entry.get('name')
+    duration = entry.get('duration')
+    if not isinstance(duration, str) or not re.fullmatch(r'\d{2,}-[0-5]\d', duration):
+        raise ValueError('Invalid duration from iPhone.')
     if (not isinstance(name, str) or not name or name in ('.', '..')
             or '/' in name or '\\' in name or len(name.encode()) > 170
             or any(ord(c) < 32 for c in name)):

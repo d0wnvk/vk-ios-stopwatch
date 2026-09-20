@@ -48,10 +48,12 @@ An iCloud-only original may need to download on the iPhone first. Locked Hidden,
 Recently Deleted, or otherwise inaccessible assets may be skipped.
 
 The Mac verifies the byte count and SHA-256 checksum before publishing each file.
-Files use the original iPhone filename, such as `IMG_5979.MOV`. Existing files
-are never overwritten: identical files are reused, while a different file with
-the same name receives a numeric suffix such as `IMG_5979 (2).MOV`. Each run
-writes a JSON manifest containing file names, checksums, and completion status.
+Files use the original iPhone filename plus duration, such as
+`IMG_5979-00-12.MOV`. Photos use `00-00`; video durations are rounded to the
+nearest second and formatted as `MM-SS`. Existing files are never overwritten:
+identical files are reused, while a different file with the same name receives a
+numeric suffix such as `IMG_5979-00-12 (2).MOV`. Each run writes a JSON manifest
+containing file names, durations, checksums, and completion status.
 
 ## Source files
 
