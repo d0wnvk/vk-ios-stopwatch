@@ -48,8 +48,9 @@ An iCloud-only original may need to download on the iPhone first. Locked Hidden,
 Recently Deleted, or otherwise inaccessible assets may be skipped.
 
 The Mac verifies the byte count and SHA-256 checksum before publishing each file.
-Existing files are never overwritten: identical files are reused, while a
-different file with the same target name is reported as a conflict. Each run
+Files use the original iPhone filename, such as `IMG_5979.MOV`. Existing files
+are never overwritten: identical files are reused, while a different file with
+the same name receives a numeric suffix such as `IMG_5979 (2).MOV`. Each run
 writes a JSON manifest containing file names, checksums, and completion status.
 
 ## Source files

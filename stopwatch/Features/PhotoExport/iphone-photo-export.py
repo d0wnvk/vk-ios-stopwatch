@@ -45,6 +45,20 @@ def checksum(path):
     return digest.hexdigest()
 
 
+def available_target(folder, name, expected):
+    """Return the original name, adding a numeric suffix only on a collision."""
+    source = Path(name)
+    stem, suffix = source.stem, source.suffix
+    for number in range(1, 10000):
+        candidate_name = name if number == 1 else f'{stem} ({number}){suffix}'
+        candidate = folder / candidate_name
+        if not candidate.exists():
+            return candidate
+        if candidate.is_file() and not candidate.is_symlink() and checksum(candidate) == expected:
+            return candidate
+    raise ValueError(f'Too many files named {name!r} in the destination folder.')
+
+
 class Client:
     def __init__(self, connection, timeout=3600):
         self.base, self.token = parse_connection(connection)
@@ -73,7 +87,6 @@ class Client:
 
     def download(self, entry, folder):
         validate_entry(entry)
-        target = folder / (entry['id'] + '_' + entry['name'])
         partial = folder / ('.' + secrets.token_hex(16) + '.part')
         try:
             with self.open('/file/' + entry['id']) as response:
@@ -99,6 +112,7 @@ class Client:
                     os.fsync(stream.fileno())
             if received != size or digest.hexdigest() != expected:
                 raise ValueError('Incomplete or damaged download; checksum/length verification failed.')
+            target = available_target(folder, entry['name'], expected)
             try:
                 os.link(partial, target)  # atomic and never overwrites
             except FileExistsError:
