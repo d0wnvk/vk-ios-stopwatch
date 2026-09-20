@@ -90,6 +90,26 @@ focus changes from disturbing the programmed gimbal and zoom sequence. Set or
 lock focus before starting a recording when a consistent cinematic focus is
 required.
 
+### Gimbal object tracking
+
+Button **8. Track Object** arms selection for one drag. Draw a rectangle around
+the object in the camera preview and release your finger to confirm it. The app
+displays the rectangle in blue, starts Vision and gimbal tracking, and
+automatically leaves selection mode. Further preview taps therefore return to
+controlling focus and cannot accidentally replace the tracked object. Press
+**8. Reselect Object** to arm one replacement drag.
+
+Vision follows the selected image region and updates the blue rectangle about
+15 times per second. Each observation and its camera frame are passed to
+DockKit's custom-object tracking API, which generates the motor movement for the
+Insta360 Flow 2 Pro. The current iPhone interface orientation is included so
+DockKit maps horizontal and vertical image movement to the correct pan and tilt
+axes. If tracking confidence becomes too low, the rectangle turns red. Tracking
+starts immediately after selection and continues whether or not video recording
+is active. While tracking is active, the tracker controls gimbal orientation
+during a recording, so the scripted tilt is skipped; the recording's programmed
+zoom still runs.
+
 ### Gimbal zoom wheel
 
 When the Insta360 Flow 2 Pro is docked, its zoom wheel adjusts camera zoom in

@@ -328,6 +328,7 @@
 				DEVELOPMENT_TEAM = 97DWB8FMPZ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PhotoExportInfo.plist;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Records the programmed 4K shot.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Records audio with the video.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Saves the completed video to your photo library.";
@@ -367,6 +368,7 @@
 				DEVELOPMENT_TEAM = 97DWB8FMPZ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PhotoExportInfo.plist;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Records the programmed 4K shot.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Records audio with the video.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Saves the completed video to your photo library.";

@@ -4,6 +4,7 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var selectedTab = 2
+    @State private var showPhotoExport = false
     @State private var provisioningTimeRemaining = ProvisioningCountdown.text()
 
     private let provisioningRefreshTimer = Timer.publish(
@@ -50,17 +51,20 @@ struct ContentView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             AppTabBar(
                 selection: $selectedTab,
+                showPhotoExport: $showPhotoExport,
                 provisioningTimeRemaining: provisioningTimeRemaining
             )
         }
         .onReceive(provisioningRefreshTimer) { date in
             provisioningTimeRemaining = ProvisioningCountdown.text(at: date)
         }
+        .sheet(isPresented: $showPhotoExport) { PhotoExportView() }
     }
 }
 
 private struct AppTabBar: View {
     @Binding var selection: Int
+    @Binding var showPhotoExport: Bool
     let provisioningTimeRemaining: String
 
     var body: some View {
@@ -70,6 +74,16 @@ private struct AppTabBar: View {
             tabButton(title: "Sport tracker", systemImage: "terminal", tag: 2)
             tabButton(title: "Insta", systemImage: "video.fill", tag: 3)
             tabButton(title: "Video player", systemImage: "play.rectangle.fill", tag: 4)
+            Button { showPhotoExport = true } label: {
+                VStack(spacing: 2) {
+                    Image(systemName: "photo.on.rectangle").font(.system(size: 17))
+                    Text("Photos")
+                }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, minHeight: 42)
+            }
+            .buttonStyle(.plain)
         }
         .padding(.top, 7)
         .padding(.bottom, 4)
