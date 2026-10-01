@@ -26,25 +26,25 @@ struct ContentView: View {
             EyeBreakView()
                 .tag(1)
                 .tabItem {
-                    Label("Eye Break", systemImage: "eye")
+                    Text("Eye Break")
                 }
 
             SportTrackerView()
                 .tag(2)
                 .tabItem {
-                    Label("Sport tracker", systemImage: "terminal")
+                    Text("Sport plan 1")
                 }
 
             Insta360RecorderScreen()
                 .tag(3)
                 .tabItem {
-                    Label("Insta", systemImage: "video.fill")
+                    Text("Insta 360")
                 }
 
             VideoPlayerView()
                 .tag(4)
                 .tabItem {
-                    Label("Video player", systemImage: "play.rectangle.fill")
+                    Text("Video player")
                 }
         }
         .toolbar(.hidden, for: .tabBar)
@@ -70,18 +70,16 @@ private struct AppTabBar: View {
     var body: some View {
         HStack(spacing: 0) {
             stopwatchButton
-            tabButton(title: "Eye Break", systemImage: "eye", tag: 1)
-            tabButton(title: "Sport tracker", systemImage: "terminal", tag: 2)
-            tabButton(title: "Insta", systemImage: "video.fill", tag: 3)
-            tabButton(title: "Video player", systemImage: "play.rectangle.fill", tag: 4)
+            tabButton(title: "Eye Break", tag: 1)
+            tabButton(title: "Sport plan 1", tag: 2)
+            tabButton(title: "Insta 360", tag: 3)
+            tabButton(title: "Video player", tag: 4)
             Button { showPhotoExport = true } label: {
-                VStack(spacing: 2) {
-                    Image(systemName: "photo.on.rectangle").font(.system(size: 17))
-                    Text("Photos")
-                }
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, minHeight: 42)
+                Text("Photos to mac")
+                    .font(.caption)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 54)
             }
             .buttonStyle(.plain)
         }
@@ -102,30 +100,28 @@ private struct AppTabBar: View {
                 Text(provisioningTimeRemaining)
                     .monospacedDigit()
             }
-            .font(.caption2)
+            .font(.caption)
+            .multilineTextAlignment(.center)
             .fontWeight(selection == 0 ? .semibold : .regular)
             .foregroundStyle(selection == 0 ? Color.accentColor : .secondary)
-            .frame(maxWidth: .infinity, minHeight: 42)
+            .frame(maxWidth: .infinity, minHeight: 54)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Stopwatch, \(provisioningTimeRemaining) remaining")
     }
 
-    private func tabButton(title: String, systemImage: String, tag: Int) -> some View {
+    private func tabButton(title: String, tag: Int) -> some View {
         Button {
             selection = tag
         } label: {
-            VStack(spacing: 2) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 17))
-                Text(title)
-                    .lineLimit(1)
-            }
-            .font(.caption2)
-            .foregroundStyle(selection == tag ? Color.accentColor : .secondary)
-            .frame(maxWidth: .infinity, minHeight: 42)
-            .contentShape(Rectangle())
+            Text(title)
+                .lineLimit(3)
+                .multilineTextAlignment(.center)
+                .font(.caption)
+                .foregroundStyle(selection == tag ? Color.accentColor : .secondary)
+                .frame(maxWidth: .infinity, minHeight: 54)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }

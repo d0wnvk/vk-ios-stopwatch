@@ -10,8 +10,13 @@ import UIKit
 extension RecorderController {
     func performRecording(accessory: DockAccessory, camera: AVCaptureDevice) async {
         do {
-            try await DockAccessoryManager.shared.setSystemTrackingEnabled(false)
-            let startingOrientation = try await currentOrientation(of: accessory)
+            let trackingControlsGimbal = isObjectTracking
+            if !trackingControlsGimbal {
+                try await DockAccessoryManager.shared.setSystemTrackingEnabled(false)
+            }
+            let startingOrientation = trackingControlsGimbal
+                ? nil
+                : try await currentOrientation(of: accessory)
             activeStartingOrientation = startingOrientation
 
             try camera.lockForConfiguration()
@@ -29,12 +34,16 @@ extension RecorderController {
             status = "Recording: stationary at 4.9×"
             try await Task.sleep(for: .seconds(2))
 
-            async let movement: Void = moveRecordOneGimbal(
-                accessory: accessory,
-                endpoint: recordOneEndOrientation
-            )
+            let movement = isObjectTracking ? nil : Task {
+                try await self.moveRecordOneGimbal(
+                    accessory: accessory,
+                    endpoint: self.recordOneEndOrientation
+                )
+            }
 
-            status = "Recording: tilting up 45°"
+            status = isObjectTracking
+                ? "Recording: following tracked object"
+                : "Recording: tilting up 45°"
             try await Task.sleep(for: .seconds(2))
 
             status = String(format: "Recording: tilting up, 4.9× → %.1f×", recordOneEndZoom)
@@ -44,25 +53,29 @@ extension RecorderController {
                 to: recordOneEndZoom,
                 duration: 6
             )
-            _ = try await movement
+            try await movement?.value
 
             status = String(format: "Recording: stationary at %.1f×", recordOneEndZoom)
             try await Task.sleep(for: .seconds(2))
             movieOutput.stopRecording()
 
-            isReturningGimbal = true
-            status = "Recording complete. Returning gimbal to its starting position…"
-            do {
-                _ = try await accessory.setOrientation(
-                    startingOrientation,
-                    duration: .seconds(3),
-                    relative: false
-                )
-                status = "Saved. Gimbal returned to its starting position."
-            } catch {
-                status = "Recording finished, but returning the gimbal failed: \(error.localizedDescription)"
+            if let startingOrientation, !isObjectTracking {
+                isReturningGimbal = true
+                status = "Recording complete. Returning gimbal to its starting position…"
+                do {
+                    _ = try await accessory.setOrientation(
+                        startingOrientation,
+                        duration: .seconds(3),
+                        relative: false
+                    )
+                    status = "Saved. Gimbal returned to its starting position."
+                } catch {
+                    status = "Recording finished, but returning the gimbal failed: \(error.localizedDescription)"
+                }
+                isReturningGimbal = false
+            } else {
+                status = "Saved. Object tracking continues."
             }
-            isReturningGimbal = false
             activeStartingOrientation = nil
         } catch is CancellationError {
             if movieOutput.isRecording { movieOutput.stopRecording() }
@@ -78,8 +91,13 @@ extension RecorderController {
     func performVerticalZoomOutRecording(accessory: DockAccessory,
                                                   camera: AVCaptureDevice) async {
         do {
-            try await DockAccessoryManager.shared.setSystemTrackingEnabled(false)
-            let startingOrientation = try await currentOrientation(of: accessory)
+            let trackingControlsGimbal = isObjectTracking
+            if !isObjectTracking {
+                try await DockAccessoryManager.shared.setSystemTrackingEnabled(false)
+            }
+            let startingOrientation = trackingControlsGimbal
+                ? nil
+                : try await currentOrientation(of: accessory)
             activeStartingOrientation = startingOrientation
 
             try camera.lockForConfiguration()
@@ -96,22 +114,28 @@ extension RecorderController {
             movieOutput.startRecording(to: url, recordingDelegate: self)
             try await Task.sleep(for: .milliseconds(150))
 
-            status = "Recording: tilting up 15°"
-            let firstTilt = Vector3D(x: verticalStep.radians, y: 0, z: 0)
-            _ = try await accessory.setOrientation(
-                firstTilt,
-                duration: .seconds(verticalStepDuration),
-                relative: true
-            )
+            if !trackingControlsGimbal {
+                status = "Recording: tilting up 15°"
+                let firstTilt = Vector3D(x: verticalStep.radians, y: 0, z: 0)
+                _ = try await accessory.setOrientation(
+                    firstTilt,
+                    duration: .seconds(verticalStepDuration),
+                    relative: true
+                )
+            }
 
-            let secondTilt = Vector3D(x: verticalStep.radians, y: 0, z: 0)
-            async let secondMovement = accessory.setOrientation(
-                secondTilt,
-                duration: .seconds(secondVerticalStepDuration),
-                relative: true
-            )
+            let secondMovement = isObjectTracking ? nil : Task {
+                let secondTilt = Vector3D(x: self.verticalStep.radians, y: 0, z: 0)
+                return try await accessory.setOrientation(
+                    secondTilt,
+                    duration: .seconds(self.secondVerticalStepDuration),
+                    relative: true
+                )
+            }
 
-            status = "Recording: tilting up another 15°, 4.9× → 2.0×"
+            status = isObjectTracking
+                ? "Recording: following tracked object, 4.9× → 2.0×"
+                : "Recording: tilting up another 15°, 4.9× → 2.0×"
 
             try await interpolateZoom(
                 camera: camera,
@@ -119,22 +143,26 @@ extension RecorderController {
                 to: 2.0,
                 duration: secondVerticalStepDuration
             )
-            _ = try await secondMovement
+            _ = try await secondMovement?.value
             movieOutput.stopRecording()
 
-            isReturningGimbal = true
-            status = "Recording complete. Returning gimbal to its starting position…"
-            do {
-                _ = try await accessory.setOrientation(
-                    startingOrientation,
-                    duration: .seconds(verticalStepDuration),
-                    relative: false
-                )
-                status = "Saved. Gimbal returned to its starting position."
-            } catch {
-                status = "Recording finished, but returning the gimbal failed: \(error.localizedDescription)"
+            if let startingOrientation, !isObjectTracking {
+                isReturningGimbal = true
+                status = "Recording complete. Returning gimbal to its starting position…"
+                do {
+                    _ = try await accessory.setOrientation(
+                        startingOrientation,
+                        duration: .seconds(verticalStepDuration),
+                        relative: false
+                    )
+                    status = "Saved. Gimbal returned to its starting position."
+                } catch {
+                    status = "Recording finished, but returning the gimbal failed: \(error.localizedDescription)"
+                }
+                isReturningGimbal = false
+            } else {
+                status = "Saved. Object tracking continues."
             }
-            isReturningGimbal = false
             activeStartingOrientation = nil
         } catch is CancellationError {
             if movieOutput.isRecording { movieOutput.stopRecording() }
@@ -227,11 +255,15 @@ extension RecorderController {
             .compactMap({ $0 as? UIWindowScene })
             .first(where: { $0.activationState == .foregroundActive })?
             .interfaceOrientation,
-              let connection = movieOutput.connection(with: .video) else { return }
+              let movieConnection = movieOutput.connection(with: .video) else { return }
 
         let angle = correctedVideoRotationAngle(for: orientation)
-        if connection.isVideoRotationAngleSupported(angle) {
-            connection.videoRotationAngle = angle
+        if movieConnection.isVideoRotationAngleSupported(angle) {
+            movieConnection.videoRotationAngle = angle
+        }
+        if let trackingConnection = trackingVideoOutput.connection(with: .video),
+           trackingConnection.isVideoRotationAngleSupported(angle) {
+            trackingConnection.videoRotationAngle = angle
         }
     }
 

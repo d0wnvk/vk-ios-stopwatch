@@ -13,6 +13,9 @@ struct Insta360RecorderView: View {
             CameraPreview(
                 session: recorder.session,
                 focusFeedback: recorder.focusFeedback,
+                isSelectingTrackedObject: recorder.isSelectingTrackedObject,
+                trackedObjectRect: recorder.trackedObjectRect,
+                trackedObjectLost: recorder.trackedObjectLost,
                 onFocus: { cameraPoint in
                     recorder.focusAndExpose(at: cameraPoint, lockAfterAdjustment: false)
                 },
@@ -21,6 +24,9 @@ struct Insta360RecorderView: View {
                 },
                 onFocusReset: {
                     recorder.restoreContinuousFocusAndExposure()
+                },
+                onObjectSelection: { metadataRect in
+                    Task { await recorder.selectTrackedObject(in: metadataRect) }
                 }
             )
                 .ignoresSafeArea()
@@ -123,6 +129,26 @@ struct Insta360RecorderView: View {
                 .padding(.vertical, isCompactHeight ? 6 : 10)
                 .background(.ultraThinMaterial, in: Capsule())
                 .frame(maxWidth: .infinity, alignment: .trailing)
+
+                Button(action: recorder.enableTrackedObjectSelection) {
+                    Label(
+                        recorder.isSelectingTrackedObject
+                            ? "8. Draw Object…"
+                            : recorder.isObjectTracking
+                                ? "8. Reselect Object"
+                                : "8. Track Object",
+                        systemImage: recorder.isObjectTracking ? "viewfinder.circle.fill" : "viewfinder"
+                    )
+                    .font(.subheadline.weight(.semibold))
+                    .frame(minHeight: isCompactHeight ? 34 : 42)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint((recorder.isObjectTracking ? Color.blue : .indigo).opacity(0.6))
+                .disabled(!recorder.gimbalConnected || recorder.isSelectingTrackedObject)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .accessibilityLabel(
+                    recorder.isObjectTracking ? "Reselect tracked object" : "Select object to track"
+                )
 
                 Button {
                     Task { await recorder.rememberRecordOneEndpoint() }
@@ -298,15 +324,20 @@ private func formattedTime(_ interval: TimeInterval, showTenths: Bool = false) -
 private struct CameraPreview: UIViewRepresentable {
     let session: AVCaptureSession
     let focusFeedback: FocusFeedbackState
+    let isSelectingTrackedObject: Bool
+    let trackedObjectRect: CGRect?
+    let trackedObjectLost: Bool
     let onFocus: (CGPoint) -> Void
     let onFocusLock: (CGPoint) -> Void
     let onFocusReset: () -> Void
+    let onObjectSelection: (CGRect) -> Void
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
             onFocus: onFocus,
             onFocusLock: onFocusLock,
-            onFocusReset: onFocusReset
+            onFocusReset: onFocusReset,
+            onObjectSelection: onObjectSelection
         )
     }
 
@@ -322,26 +353,34 @@ private struct CameraPreview: UIViewRepresentable {
         context.coordinator.onFocus = onFocus
         context.coordinator.onFocusLock = onFocusLock
         context.coordinator.onFocusReset = onFocusReset
+        context.coordinator.onObjectSelection = onObjectSelection
+        context.coordinator.isSelectingTrackedObject = isSelectingTrackedObject
         if uiView.videoPreviewLayer.session !== session {
             uiView.videoPreviewLayer.session = session
         }
         uiView.applyFocusFeedback(focusFeedback)
+        uiView.showTrackedObject(rect: trackedObjectRect, isLost: trackedObjectLost)
         uiView.updateVideoOrientation()
     }
 
-    final class Coordinator: NSObject {
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
         var onFocus: (CGPoint) -> Void
         var onFocusLock: (CGPoint) -> Void
         var onFocusReset: () -> Void
+        var onObjectSelection: (CGRect) -> Void
+        var isSelectingTrackedObject = false
+        private var selectionStartPoint: CGPoint?
 
         init(
             onFocus: @escaping (CGPoint) -> Void,
             onFocusLock: @escaping (CGPoint) -> Void,
-            onFocusReset: @escaping () -> Void
+            onFocusReset: @escaping () -> Void,
+            onObjectSelection: @escaping (CGRect) -> Void
         ) {
             self.onFocus = onFocus
             self.onFocusLock = onFocusLock
             self.onFocusReset = onFocusReset
+            self.onObjectSelection = onObjectSelection
         }
 
         func installGestures(on view: PreviewView) {
@@ -354,9 +393,21 @@ private struct CameraPreview: UIViewRepresentable {
             longPress.minimumPressDuration = 0.6
             singleTap.require(toFail: longPress)
 
+            let selectionPan = UIPanGestureRecognizer(
+                target: self,
+                action: #selector(selectObject(_:))
+            )
+            selectionPan.delegate = self
+
             view.addGestureRecognizer(singleTap)
             view.addGestureRecognizer(doubleTap)
             view.addGestureRecognizer(longPress)
+            view.addGestureRecognizer(selectionPan)
+        }
+
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            guard gestureRecognizer is UIPanGestureRecognizer else { return true }
+            return isSelectingTrackedObject
         }
 
         @objc private func focus(_ gesture: UITapGestureRecognizer) {
@@ -365,8 +416,50 @@ private struct CameraPreview: UIViewRepresentable {
             let cameraPoint = view.videoPreviewLayer.captureDevicePointConverted(
                 fromLayerPoint: previewPoint
             )
+            guard !isSelectingTrackedObject else { return }
             view.showFocusReticle(at: previewPoint, isLocked: false)
             onFocus(cameraPoint)
+        }
+
+        @objc private func selectObject(_ gesture: UIPanGestureRecognizer) {
+            guard isSelectingTrackedObject,
+                  let view = gesture.view as? PreviewView else { return }
+            let point = gesture.location(in: view)
+
+            switch gesture.state {
+            case .began:
+                selectionStartPoint = point
+                view.showPendingTrackedObject(in: CGRect(origin: point, size: .zero))
+            case .changed:
+                guard let start = selectionStartPoint else { return }
+                view.showPendingTrackedObject(in: selectionRect(from: start, to: point, in: view.bounds))
+            case .ended:
+                guard let start = selectionStartPoint else { return }
+                selectionStartPoint = nil
+                let layerRect = selectionRect(from: start, to: point, in: view.bounds)
+                guard layerRect.width >= 24, layerRect.height >= 24 else {
+                    view.hideTrackedObject()
+                    return
+                }
+                let metadataRect = view.videoPreviewLayer.metadataOutputRectConverted(
+                    fromLayerRect: layerRect
+                )
+                onObjectSelection(metadataRect)
+            case .cancelled, .failed:
+                selectionStartPoint = nil
+                view.hideTrackedObject()
+            default:
+                break
+            }
+        }
+
+        private func selectionRect(from start: CGPoint, to end: CGPoint, in bounds: CGRect) -> CGRect {
+            CGRect(
+                x: min(start.x, end.x),
+                y: min(start.y, end.y),
+                width: abs(end.x - start.x),
+                height: abs(end.y - start.y)
+            ).intersection(bounds)
         }
 
         @objc private func lockFocus(_ gesture: UILongPressGestureRecognizer) {
@@ -390,16 +483,19 @@ private struct CameraPreview: UIViewRepresentable {
 private final class PreviewView: UIView {
     private let focusReticleView = UIView(frame: CGRect(x: 0, y: 0, width: 68, height: 68))
     private let focusLockImageView = UIImageView(image: UIImage(systemName: "lock.fill"))
+    private let trackedObjectView = UIView()
     private var lockRequested = false
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         configureFocusReticle()
+        configureTrackedObjectView()
     }
 
     required init?(coder: NSCoder) {
         super.init(coder: coder)
         configureFocusReticle()
+        configureTrackedObjectView()
     }
 
     override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }
@@ -445,6 +541,33 @@ private final class PreviewView: UIView {
         focusLockImageView.isHidden = !lockRequested
     }
 
+    func showPendingTrackedObject(in rect: CGRect) {
+        trackedObjectView.frame = rect
+        trackedObjectView.layer.borderColor = UIColor.systemBlue.cgColor
+        trackedObjectView.isHidden = false
+    }
+
+    func hideTrackedObject() {
+        trackedObjectView.isHidden = true
+    }
+
+    func showTrackedObject(rect: CGRect?, isLost: Bool) {
+        guard let rect else {
+            if !isLost { trackedObjectView.isHidden = true }
+            return
+        }
+        trackedObjectView.frame = videoPreviewLayer.layerRectConverted(
+            fromMetadataOutputRect: rect
+        )
+        trackedObjectView.layer.borderColor = (isLost
+            ? UIColor.systemRed
+            : UIColor.systemBlue).cgColor
+        trackedObjectView.accessibilityLabel = isLost
+            ? "Tracked object lost"
+            : "Tracked object"
+        trackedObjectView.isHidden = false
+    }
+
     private func configureFocusReticle() {
         focusReticleView.isHidden = true
         focusReticleView.isUserInteractionEnabled = false
@@ -462,6 +585,19 @@ private final class PreviewView: UIView {
         focusLockImageView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         focusReticleView.addSubview(focusLockImageView)
         addSubview(focusReticleView)
+    }
+
+    private func configureTrackedObjectView() {
+        trackedObjectView.isHidden = true
+        trackedObjectView.isUserInteractionEnabled = false
+        trackedObjectView.layer.borderColor = UIColor.systemBlue.cgColor
+        trackedObjectView.layer.borderWidth = 3
+        trackedObjectView.layer.cornerRadius = 8
+        trackedObjectView.layer.shadowColor = UIColor.black.cgColor
+        trackedObjectView.layer.shadowOpacity = 0.7
+        trackedObjectView.layer.shadowRadius = 2
+        trackedObjectView.layer.shadowOffset = .zero
+        addSubview(trackedObjectView)
     }
 
     override func didMoveToWindow() {

@@ -40,6 +40,18 @@ extension RecorderController {
         guard session.canAddOutput(movieOutput) else { throw RecorderError.cannotAddOutput }
         session.addOutput(movieOutput)
 
+        trackingVideoOutput.alwaysDiscardsLateVideoFrames = true
+        trackingVideoOutput.videoSettings = [
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
+        ]
+        trackingVideoOutput.setSampleBufferDelegate(
+            objectTracker,
+            queue: objectTracker.queueForCaptureOutput
+        )
+        if session.canAddOutput(trackingVideoOutput) {
+            session.addOutput(trackingVideoOutput)
+        }
+
         try device.lockForConfiguration()
         device.activeFormat = format
         device.activeVideoMinFrameDuration = CMTime(value: 1, timescale: 60)

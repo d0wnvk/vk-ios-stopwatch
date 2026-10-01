@@ -31,6 +31,10 @@ final class RecorderController: NSObject, ObservableObject {
     @Published var currentZoom: CGFloat = 1.0
     @Published var activeCameraName = "Camera"
     @Published var focusFeedback: FocusFeedbackState = .hidden
+    @Published var isSelectingTrackedObject = false
+    @Published var isObjectTracking = false
+    @Published var trackedObjectRect: CGRect?
+    @Published var trackedObjectLost = false
     @Published var recordOneEndZoom: CGFloat = 2.0
     @Published var recordOneEndOrientation: Vector3D?
     @Published var lastRecordingURL: URL?
@@ -43,6 +47,8 @@ final class RecorderController: NSObject, ObservableObject {
     }
 
     let movieOutput = AVCaptureMovieFileOutput()
+    let trackingVideoOutput = AVCaptureVideoDataOutput()
+    let objectTracker = RecorderObjectTracker()
     var camera: AVCaptureDevice?
     var accessory: DockAccessory?
     var cameraReady = false
@@ -55,6 +61,7 @@ final class RecorderController: NSObject, ObservableObject {
     var activePhysicalCameraID: String?
     var recordingTimerTask: Task<Void, Never>?
     var recordingSequenceTask: Task<Void, Never>?
+    var dockTrackingTask: Task<Void, Never>?
     var activeStartingOrientation: Vector3D?
     var pendingRecordingFailure: String?
 
@@ -67,6 +74,11 @@ final class RecorderController: NSObject, ObservableObject {
 
     override init() {
         super.init()
+        objectTracker.onUpdate = { [weak self] rect, _, pixelBuffer in
+            Task { @MainActor in
+                self?.handleTrackedObjectUpdate(rect, pixelBuffer: pixelBuffer)
+            }
+        }
         let savedRecording = Self.savedRecordingURL
         if FileManager.default.fileExists(atPath: savedRecording.path) {
             lastRecordingURL = savedRecording
@@ -128,6 +140,13 @@ final class RecorderController: NSObject, ObservableObject {
         activePhysicalCameraID = nil
         accessory = nil
         gimbalConnected = false
+        isSelectingTrackedObject = false
+        isObjectTracking = false
+        trackedObjectRect = nil
+        trackedObjectLost = false
+        objectTracker.reset()
+        dockTrackingTask?.cancel()
+        dockTrackingTask = nil
         gimbalBatteryLevel = nil
         gimbalIsCharging = false
 
@@ -172,7 +191,9 @@ final class RecorderController: NSObject, ObservableObject {
         }
         if movieOutput.isRecording { movieOutput.stopRecording() }
 
-        guard let accessory, let startingOrientation = activeStartingOrientation else { return }
+        guard !isObjectTracking,
+              let accessory,
+              let startingOrientation = activeStartingOrientation else { return }
         activeStartingOrientation = nil
         isReturningGimbal = true
         Task {
