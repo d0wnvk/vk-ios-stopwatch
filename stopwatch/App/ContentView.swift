@@ -41,8 +41,14 @@ struct ContentView: View {
                     Text("Insta 360")
                 }
 
-            VideoPlayerView()
+            RecorderScreen()
                 .tag(4)
+                .tabItem {
+                    Text("Recorder")
+                }
+
+            VideoPlayerView()
+                .tag(5)
                 .tabItem {
                     Text("Video player")
                 }
@@ -73,7 +79,8 @@ private struct AppTabBar: View {
             tabButton(title: "Eye Break", tag: 1)
             tabButton(title: "Sport plan 1", tag: 2)
             tabButton(title: "Insta 360", tag: 3)
-            tabButton(title: "Video player", tag: 4)
+            tabButton(title: "Recorder", tag: 4)
+            tabButton(title: "Video player", tag: 5)
             Button { showPhotoExport = true } label: {
                 Text("Photos to mac")
                     .font(.caption)

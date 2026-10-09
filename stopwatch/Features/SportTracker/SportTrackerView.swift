@@ -6,17 +6,17 @@ import UIKit
 struct SportTrackerView: View {
     @StateObject private var model = SportTrackerModel()
 
-    private let oneMinuteSoundTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    private let soundTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     private let backgroundColor = Color(red: 0.27, green: 0.27, blue: 0.25)
     private let tappableCellNumbers = SportTrackerModel.tappableCellNumbers
 
     var body: some View {
         GeometryReader { geometry in
-            let standardRowHeight = geometry.size.height / 9.65375
+            let standardRowHeight = geometry.size.height / 7.65375
 
             Grid(horizontalSpacing: 0, verticalSpacing: 0) {
-                ForEach(0..<12, id: \.self) { row in
+                ForEach([0, 1, 2, 3, 4, 6, 7, 8, 9, 11], id: \.self) { row in
                     GridRow {
                         ForEach(0..<4, id: \.self) { column in
                             let cellNumber = row * 4 + column + 1
@@ -69,6 +69,19 @@ struct SportTrackerView: View {
                                         .font(.title2.monospacedDigit())
                                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                                         .buttonStyle(.plain)
+                                }
+
+                                if cellNumber == 5 {
+                                    Button(action: model.incrementSoundInterval) {
+                                        Text(String(model.soundIntervalMinutes))
+                                            .font(.system(size: 24, weight: .bold, design: .monospaced))
+                                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                            .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel("Sound interval in minutes")
+                                    .accessibilityValue("\(model.soundIntervalMinutes)")
+                                    .accessibilityHint("Increases the sound interval by one minute")
                                 }
 
                                 if cellNumber == 6 {
@@ -192,8 +205,8 @@ struct SportTrackerView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(backgroundColor)
         .foregroundStyle(.white)
-        .onReceive(oneMinuteSoundTimer) { now in
-            model.playOneMinuteSoundIfNeeded(at: now)
+        .onReceive(soundTimer) { now in
+            model.playSoundIfNeeded(at: now)
         }
         .onDisappear {
             model.stopAudio()
@@ -243,7 +256,17 @@ struct SportTrackerView: View {
 
     @ViewBuilder
     private func cellContent(for number: Int) -> some View {
-        if let label = [
+        if number == 17 || number == 37 {
+            VStack(spacing: 0) {
+                Text("ноги,")
+                    .font(.title2)
+                Text(number == 37 ? "предплечье ладонь вверх" : "предплечье ладонь вниз")
+                    .font(.system(size: 11))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if let label = [
             10: "подтягивания",
             11: "сверху под 45гр",
             12: "сидя узкий хват",
@@ -253,9 +276,6 @@ struct SportTrackerView: View {
             18: "плечи вверх",
             19: "развод",
             20: "свод",
-            22: "пресс",
-            23: "пресс",
-            24: "пресс",
             30: "вверх",
             31: "сводящие, не толкающие",
             32: "отжим на брусьях",
@@ -265,9 +285,6 @@ struct SportTrackerView: View {
             38: "вперед",
             39: "приседы",
             40: "назад",
-            42: "пресс",
-            43: "пресс",
-            44: "пресс",
         ][number] {
             VStack(spacing: -7) {
                 ForEach(labelLines(for: number, label: label), id: \.self) { line in
@@ -326,10 +343,10 @@ struct SportTrackerView: View {
         case 5...8, 25...28: ""
         case 9: "спина"
         case 13: "бицепс"
-        case 17: "ноги"
+        case 17: "ноги, предплечье ладонь вниз"
         case 29: "грудь"
         case 33: "трицепс"
-        case 37: "ноги"
+        case 37: "ноги, предплечье ладонь вверх"
         default: ""
         }
     }

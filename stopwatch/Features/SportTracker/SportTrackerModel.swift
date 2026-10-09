@@ -8,14 +8,13 @@ final class SportTrackerModel: ObservableObject {
         10, 11, 12,
         14, 15, 16,
         18, 19, 20,
-        22, 23, 24,
         30, 31, 32,
         34, 35, 36,
         38, 39, 40,
-        42, 43, 44,
     ]
 
     @Published private(set) var rightNumbers = Array(repeating: 0, count: 48)
+    @Published private(set) var soundIntervalMinutes = 1
     @Published private(set) var timerStartDate: Date?
     @Published private(set) var independentTimerStartDate: Date?
     @Published private(set) var flashingCells: [Int: UUID] = [:]
@@ -26,12 +25,18 @@ final class SportTrackerModel: ObservableObject {
 
     func resetAll() {
         rightNumbers = Array(repeating: 0, count: rightNumbers.count)
+        soundIntervalMinutes = 1
         timerStartDate = nil
         independentTimerStartDate = nil
         flashingCells.removeAll()
         lastCellTapDates.removeAll()
         didPlayOneMinuteSound = false
         stopAudio()
+    }
+
+    func incrementSoundInterval() {
+        soundIntervalMinutes += 1
+        didPlayOneMinuteSound = false
     }
 
     func incrementCounter(for cellNumber: Int, at now: Date = Date()) {
@@ -61,15 +66,16 @@ final class SportTrackerModel: ObservableObject {
         rightNumbers[cellNumber - 1] -= 1
     }
 
-    func playOneMinuteSoundIfNeeded(at now: Date) {
+    func playSoundIfNeeded(at now: Date) {
         guard let timerStartDate,
               !didPlayOneMinuteSound,
-              now.timeIntervalSince(timerStartDate) > 60 else { return }
+              now.timeIntervalSince(timerStartDate) >= TimeInterval(soundIntervalMinutes * 60)
+        else { return }
 
         didPlayOneMinuteSound = true
         guard let soundURL = Bundle.main.url(
-            forResource: "sport-tracker-audio",
-            withExtension: "m4a"
+            forResource: "notification-sound",
+            withExtension: "mp3"
         ) else { return }
 
         do {
