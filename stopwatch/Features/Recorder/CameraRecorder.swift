@@ -382,6 +382,7 @@ final class CameraRecorder: NSObject, ObservableObject {
     @Published private(set) var selectedStabilizationMode: StabilizationModeOption = .auto
     @Published private(set) var activeStabilizationStatusText = "Stabilization not configured"
     @Published private(set) var activePhysicalCameraTitle = "Main/Wide"
+    @Published private(set) var selectedCameraButtonTitle = "1x"
     @Published private(set) var availableVideoEncodings: [VideoEncodingOption] = []
     @Published private(set) var selectedVideoEncoding: VideoEncodingOption = .hevc
     @Published private(set) var recordedVideoDetailsText: String?
@@ -462,14 +463,22 @@ final class CameraRecorder: NSObject, ObservableObject {
     }
 
     func selectMainCamera() {
-        selectCameraForPreview(.wide, zoomFactor: 1.0)
+        selectCameraForPreview(.wide, zoomFactor: 1.0, buttonTitle: "1x")
+    }
+
+    func selectTwoTimesCamera() {
+        selectCameraForPreview(.wide, zoomFactor: 2.0, buttonTitle: "2x")
     }
 
     func selectTelephotoCamera() {
-        selectCameraForPreview(.telephoto, zoomFactor: 1.0)
+        selectCameraForPreview(.telephoto, zoomFactor: 1.0, buttonTitle: "5x")
     }
 
-    private func selectCameraForPreview(_ camera: PhysicalCamera, zoomFactor: CGFloat) {
+    private func selectCameraForPreview(
+        _ camera: PhysicalCamera,
+        zoomFactor: CGFloat,
+        buttonTitle: String
+    ) {
         guard isConfigured, !isRecording, !isPreparingRecordingStart, !isSwitchingCamera else { return }
 
         isSwitchingCamera = true
@@ -483,7 +492,8 @@ final class CameraRecorder: NSObject, ObservableObject {
                 switch result {
                 case .success:
                     self.activePhysicalCameraTitle = camera.title
-                    self.statusText = "\(camera.title) selected"
+                    self.selectedCameraButtonTitle = buttonTitle
+                    self.statusText = "\(buttonTitle) camera selected"
                 case let .failure(error):
                     self.statusText = error.localizedDescription
                     self.alertMessage = error.localizedDescription
@@ -518,6 +528,7 @@ final class CameraRecorder: NSObject, ObservableObject {
             startZoom: 2.0,
             endZoom: 4.8,
             camera: .wide,
+            cameraButtonTitle: "2x",
             startZoomTitle: "2x",
             endZoomTitle: "4.8x"
         )
@@ -528,6 +539,7 @@ final class CameraRecorder: NSObject, ObservableObject {
             startZoom: 1.1,
             endZoom: 4.9,
             camera: .wide,
+            cameraButtonTitle: "1x",
             startZoomTitle: "1.1x",
             endZoomTitle: "4.9x"
         )
@@ -538,6 +550,7 @@ final class CameraRecorder: NSObject, ObservableObject {
             startZoom: 5.1 / 5.0,
             endZoom: 8.1 / 5.0,
             camera: .telephoto,
+            cameraButtonTitle: "5x",
             startZoomTitle: "5.1x",
             endZoomTitle: "8.1x"
         )
@@ -547,6 +560,7 @@ final class CameraRecorder: NSObject, ObservableObject {
         startZoom: CGFloat,
         endZoom: CGFloat,
         camera: PhysicalCamera,
+        cameraButtonTitle: String,
         startZoomTitle: String,
         endZoomTitle: String
     ) {
@@ -563,6 +577,7 @@ final class CameraRecorder: NSObject, ObservableObject {
                 switch result {
                 case .success:
                     self.activePhysicalCameraTitle = camera.title
+                    self.selectedCameraButtonTitle = cameraButtonTitle
                     self.startProgrammedRecording(
                         startZoom: startZoom,
                         endZoom: endZoom,
@@ -846,6 +861,7 @@ final class CameraRecorder: NSObject, ObservableObject {
                     Task { @MainActor in
                         self.isConfigured = true
                         self.activePhysicalCameraTitle = "Main camera"
+                        self.selectedCameraButtonTitle = "1x"
                         self.statusText = "Ready for 4K 60 fps capture"
                         self.focusModeState = .auto
                         self.focusStatusText = "Continuous autofocus"

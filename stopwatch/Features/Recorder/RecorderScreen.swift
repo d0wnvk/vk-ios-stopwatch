@@ -208,12 +208,29 @@ struct RecorderScreen: View {
                     Button {
                         recorder.selectMainCamera()
                     } label: {
-                        Label("Main/Wide", systemImage: "camera")
+                        Text("1x")
                             .font(.caption.weight(.semibold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 9)
                             .background(
-                                recorder.activePhysicalCameraTitle == "Main camera"
+                                recorder.selectedCameraButtonTitle == "1x"
+                                    ? ButtonPalette.selectedCamera
+                                    : ButtonPalette.camera
+                            )
+                            .foregroundStyle(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .disabled(!recorder.isConfigured || recorder.isRecording || recorder.isSwitchingCamera)
+
+                    Button {
+                        recorder.selectTwoTimesCamera()
+                    } label: {
+                        Text("2x")
+                            .font(.caption.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 9)
+                            .background(
+                                recorder.selectedCameraButtonTitle == "2x"
                                     ? ButtonPalette.selectedCamera
                                     : ButtonPalette.camera
                             )
@@ -225,12 +242,12 @@ struct RecorderScreen: View {
                     Button {
                         recorder.selectTelephotoCamera()
                     } label: {
-                        Label("5× Telephoto", systemImage: "camera.fill")
+                        Text("5x")
                             .font(.caption.weight(.semibold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 9)
                             .background(
-                                recorder.activePhysicalCameraTitle == "5x Telephoto camera"
+                                recorder.selectedCameraButtonTitle == "5x"
                                     ? ButtonPalette.selectedCamera
                                     : ButtonPalette.camera
                             )
