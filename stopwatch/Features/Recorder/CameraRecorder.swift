@@ -422,6 +422,8 @@ final class CameraRecorder: NSObject, ObservableObject {
     private nonisolated(unsafe) var programmedRampDuration = Constants.defaultRampDuration
     private nonisolated(unsafe) var programmedInitialHoldDuration = Constants.initialHold
     private nonisolated(unsafe) var programmedFinalHoldDuration = Constants.finalHold
+    private nonisolated(unsafe) var programmedFocusLockEnabled = false
+    private nonisolated(unsafe) var lockedFocusLensPosition: Float?
     private nonisolated(unsafe) var usesLinearZoomRamp = false
     private nonisolated(unsafe) var usesCosineZoomRamp = false
     private nonisolated(unsafe) var programmedStartZoomTitle = "\(Constants.defaultInitialZoom)x"
@@ -521,6 +523,16 @@ final class CameraRecorder: NSObject, ObservableObject {
         )
     }
 
+    func startOneOneToFourNineRecording() {
+        startCosineRecording(
+            startZoom: 1.1,
+            endZoom: 4.9,
+            camera: .wide,
+            startZoomTitle: "1.1x",
+            endZoomTitle: "4.9x"
+        )
+    }
+
     func startFiveOneToEightOneRecording() {
         startCosineRecording(
             startZoom: 5.1 / 5.0,
@@ -598,6 +610,7 @@ final class CameraRecorder: NSObject, ObservableObject {
         programmedInitialHoldDuration = initialHold
         programmedRampDuration = rampDuration
         programmedFinalHoldDuration = finalHold
+        programmedFocusLockEnabled = focusModeState == .locked
         usesLinearZoomRamp = usesLinearRamp
         usesCosineZoomRamp = usesCosineRamp
         programmedStartZoomTitle = startZoomTitle
@@ -617,6 +630,9 @@ final class CameraRecorder: NSObject, ObservableObject {
         sessionQueue.async {
             do {
                 try self.setZoom(self.programmedStartZoomFactor, cancelExistingRamp: true)
+                if self.programmedFocusLockEnabled {
+                    try self.lockCurrentFocusConfiguration(useStoredLensPosition: true)
+                }
             } catch {
                 Task { @MainActor in
                     self.isPreparingRecordingStart = false
@@ -624,6 +640,13 @@ final class CameraRecorder: NSObject, ObservableObject {
                     self.statusText = error.localizedDescription
                 }
                 return
+            }
+
+            if self.programmedFocusLockEnabled {
+                Task { @MainActor in
+                    self.focusModeState = .locked
+                    self.focusStatusText = "Focus and exposure locked for recording"
+                }
             }
 
             self.pendingRecordingStartWorkItem?.cancel()
@@ -1074,6 +1097,10 @@ final class CameraRecorder: NSObject, ObservableObject {
 
     private func beginRecording(to outputURL: URL) {
         do {
+            if programmedFocusLockEnabled {
+                try lockCurrentFocusConfiguration(useStoredLensPosition: true)
+            }
+
             let writer = try AVAssetWriter(outputURL: outputURL, fileType: .mov)
             let videoInput = AVAssetWriterInput(
                 mediaType: .video,
@@ -1149,6 +1176,7 @@ final class CameraRecorder: NSObject, ObservableObject {
         shouldStopAppendingSamples = false
         recordingStopTime = nil
         programmedFinalHoldStartTime = nil
+        programmedFocusLockEnabled = false
         readyVideoFrameCountBeforeStart = 0
 
         Task { @MainActor in
@@ -1371,6 +1399,17 @@ final class CameraRecorder: NSObject, ObservableObject {
             videoDevice.cancelVideoZoomRamp()
         }
         videoDevice.videoZoomFactor = min(max(factor, 1.0), videoDevice.activeFormat.videoMaxZoomFactor)
+
+        if programmedFocusLockEnabled,
+           videoDevice.isFocusModeSupported(.locked),
+           let lockedFocusLensPosition,
+           videoDevice.focusMode != .locked
+            || abs(videoDevice.lensPosition - lockedFocusLensPosition) > 0.0005 {
+            videoDevice.setFocusModeLocked(
+                lensPosition: lockedFocusLensPosition,
+                completionHandler: nil
+            )
+        }
         videoDevice.unlockForConfiguration()
     }
 
@@ -1484,6 +1523,7 @@ final class CameraRecorder: NSObject, ObservableObject {
             guard let videoDevice = self.videoDevice else { return }
 
             do {
+                self.programmedFocusLockEnabled = false
                 try videoDevice.lockForConfiguration()
                 self.configureDefaultFocus(for: videoDevice)
                 videoDevice.unlockForConfiguration()
@@ -1502,21 +1542,9 @@ final class CameraRecorder: NSObject, ObservableObject {
 
     private func lockCurrentFocus() {
         sessionQueue.async {
-            guard let videoDevice = self.videoDevice else { return }
-
             do {
-                try videoDevice.lockForConfiguration()
-
-                if videoDevice.isFocusModeSupported(.locked) {
-                    videoDevice.focusMode = .locked
-                }
-
-                if videoDevice.isExposureModeSupported(.locked) {
-                    videoDevice.exposureMode = .locked
-                }
-
-                videoDevice.isSubjectAreaChangeMonitoringEnabled = false
-                videoDevice.unlockForConfiguration()
+                try self.lockCurrentFocusConfiguration()
+                self.programmedFocusLockEnabled = self.isRecording || self.isPreparingRecordingStart
 
                 Task { @MainActor in
                     self.focusModeState = .locked
@@ -1572,6 +1600,8 @@ final class CameraRecorder: NSObject, ObservableObject {
     }
 
     private func configureDefaultFocus(for device: AVCaptureDevice) {
+        lockedFocusLensPosition = nil
+
         if device.isFocusModeSupported(.continuousAutoFocus) {
             device.focusMode = .continuousAutoFocus
         } else if device.isFocusModeSupported(.autoFocus) {
@@ -1591,15 +1621,23 @@ final class CameraRecorder: NSObject, ObservableObject {
         device.isSubjectAreaChangeMonitoringEnabled = true
     }
 
-    private func lockCurrentFocusConfiguration() throws {
+    private func lockCurrentFocusConfiguration(useStoredLensPosition: Bool = false) throws {
         guard let videoDevice else {
             throw RecorderError.configurationFailed
         }
 
         try videoDevice.lockForConfiguration()
+        defer { videoDevice.unlockForConfiguration() }
 
         if videoDevice.isFocusModeSupported(.locked) {
-            videoDevice.focusMode = .locked
+            let lensPosition = useStoredLensPosition
+                ? (lockedFocusLensPosition ?? videoDevice.lensPosition)
+                : videoDevice.lensPosition
+            lockedFocusLensPosition = lensPosition
+            videoDevice.setFocusModeLocked(
+                lensPosition: lensPosition,
+                completionHandler: nil
+            )
         }
 
         if videoDevice.isExposureModeSupported(.locked) {
@@ -1607,7 +1645,6 @@ final class CameraRecorder: NSObject, ObservableObject {
         }
 
         videoDevice.isSubjectAreaChangeMonitoringEnabled = false
-        videoDevice.unlockForConfiguration()
     }
 
     private func persistVideoToPhotos(from url: URL) {
