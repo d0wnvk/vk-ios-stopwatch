@@ -8,6 +8,8 @@ private enum ButtonPalette {
     static let encoding = Color(red: 0.64, green: 0.36, blue: 0.16)
     static let stabilization = Color(red: 0.28, green: 0.31, blue: 0.82)
     static let focus = Color(red: 0.09, green: 0.72, blue: 0.61)
+    static let camera = Color(red: 0.12, green: 0.48, blue: 0.64)
+    static let selectedCamera = Color(red: 0.12, green: 0.68, blue: 0.42)
     static let zoomDuration = Color(red: 0.56, green: 0.27, blue: 0.68)
     static let zoomStart = Color(red: 0.16, green: 0.47, blue: 0.85)
     static let zoomReset = Color(red: 0.12, green: 0.58, blue: 0.78)
@@ -203,6 +205,46 @@ struct RecorderScreen: View {
                     .foregroundStyle(.white.opacity(0.72))
 
                 HStack(spacing: 12) {
+                    Button {
+                        recorder.selectMainCamera()
+                    } label: {
+                        Label("Main/Wide", systemImage: "camera")
+                            .font(.caption.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 9)
+                            .background(
+                                recorder.activePhysicalCameraTitle == "Main camera"
+                                    ? ButtonPalette.selectedCamera
+                                    : ButtonPalette.camera
+                            )
+                            .foregroundStyle(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .disabled(!recorder.isConfigured || recorder.isRecording || recorder.isSwitchingCamera)
+
+                    Button {
+                        recorder.selectTelephotoCamera()
+                    } label: {
+                        Label("5× Telephoto", systemImage: "camera.fill")
+                            .font(.caption.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 9)
+                            .background(
+                                recorder.activePhysicalCameraTitle == "5x Telephoto camera"
+                                    ? ButtonPalette.selectedCamera
+                                    : ButtonPalette.camera
+                            )
+                            .foregroundStyle(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .disabled(!recorder.isConfigured || recorder.isRecording || recorder.isSwitchingCamera)
+                }
+
+                Text("Active camera: \(recorder.activePhysicalCameraTitle)")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.82))
+
+                HStack(spacing: 12) {
                     Menu {
                         ForEach(recorder.availableVideoEncodings) { encoding in
                             Button {
@@ -390,6 +432,20 @@ struct RecorderScreen: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 9)
                             .background(recorder.isRecording ? ButtonPalette.zoomEnd.opacity(0.45) : ButtonPalette.zoomEnd)
+                            .foregroundStyle(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .disabled(!recorder.isConfigured || recorder.isRecording)
+
+                    Button {
+                        collapseControlsForRecording()
+                        recorder.startFiveOneToEightOneRecording()
+                    } label: {
+                        Text("5.1x-8.1x")
+                            .font(.caption.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 9)
+                            .background(recorder.isRecording ? ButtonPalette.zoomStart.opacity(0.45) : ButtonPalette.zoomStart)
                             .foregroundStyle(.white)
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }

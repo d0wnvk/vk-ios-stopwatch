@@ -27,6 +27,29 @@ final class CameraRecorder: NSObject, ObservableObject {
         case finalHold
     }
 
+    private enum PhysicalCamera {
+        case wide
+        case telephoto
+
+        var deviceType: AVCaptureDevice.DeviceType {
+            switch self {
+            case .wide:
+                return .builtInWideAngleCamera
+            case .telephoto:
+                return .builtInTelephotoCamera
+            }
+        }
+
+        var title: String {
+            switch self {
+            case .wide:
+                return "Main camera"
+            case .telephoto:
+                return "5x Telephoto camera"
+            }
+        }
+    }
+
     struct RecordingStageTimers: Sendable {
         var initialHold: TimeInterval = 0
         var zoom: TimeInterval = 0
@@ -293,6 +316,7 @@ final class CameraRecorder: NSObject, ObservableObject {
         case cameraPermissionDenied
         case microphonePermissionDenied
         case missingVideoDevice
+        case missingRequestedCamera(String)
         case missingAudioDevice
         case unsupportedFormat
         case cannotAddInput
@@ -309,6 +333,8 @@ final class CameraRecorder: NSObject, ObservableObject {
                 return "Microphone access is required."
             case .missingVideoDevice:
                 return "The back camera is not available."
+            case let .missingRequestedCamera(cameraName):
+                return "The \(cameraName) is not available on this iPhone."
             case .missingAudioDevice:
                 return "The microphone is not available."
             case .unsupportedFormat:
@@ -355,6 +381,7 @@ final class CameraRecorder: NSObject, ObservableObject {
     @Published private(set) var supportedStabilizationModes: [StabilizationModeOption] = []
     @Published private(set) var selectedStabilizationMode: StabilizationModeOption = .auto
     @Published private(set) var activeStabilizationStatusText = "Stabilization not configured"
+    @Published private(set) var activePhysicalCameraTitle = "Main/Wide"
     @Published private(set) var availableVideoEncodings: [VideoEncodingOption] = []
     @Published private(set) var selectedVideoEncoding: VideoEncodingOption = .hevc
     @Published private(set) var recordedVideoDetailsText: String?
@@ -374,6 +401,7 @@ final class CameraRecorder: NSObject, ObservableObject {
     private var pendingRecordingStartWorkItem: DispatchWorkItem?
     private var recordingStartedAt: Date?
     private var isPreparingRecordingStart = false
+    @Published private(set) var isSwitchingCamera = false
     private var currentVideoOrientation: AVCaptureVideoOrientation = .portrait
     private nonisolated(unsafe) var assetWriter: AVAssetWriter?
     private nonisolated(unsafe) var videoWriterInput: AVAssetWriterInput?
@@ -394,9 +422,8 @@ final class CameraRecorder: NSObject, ObservableObject {
     private nonisolated(unsafe) var programmedRampDuration = Constants.defaultRampDuration
     private nonisolated(unsafe) var programmedInitialHoldDuration = Constants.initialHold
     private nonisolated(unsafe) var programmedFinalHoldDuration = Constants.finalHold
-    private nonisolated(unsafe) var programmedMaximumZoomSpeed: CGFloat = 0.58
     private nonisolated(unsafe) var usesLinearZoomRamp = false
-    private nonisolated(unsafe) var usesExponentialSpeedRamp = false
+    private nonisolated(unsafe) var usesCosineZoomRamp = false
     private nonisolated(unsafe) var programmedStartZoomTitle = "\(Constants.defaultInitialZoom)x"
     private nonisolated(unsafe) var programmedEndZoomTitle = "\(Constants.defaultTargetZoom)x"
 
@@ -432,6 +459,37 @@ final class CameraRecorder: NSObject, ObservableObject {
         }
     }
 
+    func selectMainCamera() {
+        selectCameraForPreview(.wide, zoomFactor: 1.0)
+    }
+
+    func selectTelephotoCamera() {
+        selectCameraForPreview(.telephoto, zoomFactor: 1.0)
+    }
+
+    private func selectCameraForPreview(_ camera: PhysicalCamera, zoomFactor: CGFloat) {
+        guard isConfigured, !isRecording, !isPreparingRecordingStart, !isSwitchingCamera else { return }
+
+        isSwitchingCamera = true
+        statusText = "Switching to \(camera.title)"
+
+        switchToCamera(camera, startZoom: zoomFactor, endZoom: zoomFactor) { [weak self] result in
+            Task { @MainActor in
+                guard let self else { return }
+                self.isSwitchingCamera = false
+
+                switch result {
+                case .success:
+                    self.activePhysicalCameraTitle = camera.title
+                    self.statusText = "\(camera.title) selected"
+                case let .failure(error):
+                    self.statusText = error.localizedDescription
+                    self.alertMessage = error.localizedDescription
+                }
+            }
+        }
+    }
+
     func stopSession() {
         sessionQueue.async {
             guard self.session.isRunning else { return }
@@ -447,37 +505,69 @@ final class CameraRecorder: NSObject, ObservableObject {
             rampDuration: selectedZoomDuration.duration,
             finalHold: Constants.finalHold,
             usesLinearRamp: false,
-            usesExponentialSpeedRamp: false,
+            usesCosineRamp: false,
             startZoomTitle: selectedStartZoom.title,
             endZoomTitle: selectedEndZoom.title
         )
     }
 
     func startTwoToFourEightRecording() {
-        let startZoom: CGFloat = 2.0
-        let endZoom: CGFloat = 4.8
-        let accelerationDuration: TimeInterval = 3
-        let decelerationDuration: TimeInterval = 3
-        let accelerationCurveStrength: CGFloat = 4
-        let accelerationDistanceAtUnitSpeed = exponentialAccelerationDistance(
-            maximumSpeed: 1,
-            duration: accelerationDuration,
-            strength: accelerationCurveStrength
-        )
-        let maximumSpeed = (endZoom - startZoom) / (2 * accelerationDistanceAtUnitSpeed)
-        programmedMaximumZoomSpeed = maximumSpeed
-
-        startProgrammedRecording(
-            startZoom: startZoom,
-            endZoom: endZoom,
-            initialHold: 4,
-            rampDuration: accelerationDuration + decelerationDuration,
-            finalHold: 6,
-            usesLinearRamp: true,
-            usesExponentialSpeedRamp: true,
+        startCosineRecording(
+            startZoom: 2.0,
+            endZoom: 4.8,
+            camera: .wide,
             startZoomTitle: "2x",
             endZoomTitle: "4.8x"
         )
+    }
+
+    func startFiveOneToEightOneRecording() {
+        startCosineRecording(
+            startZoom: 5.1 / 5.0,
+            endZoom: 8.1 / 5.0,
+            camera: .telephoto,
+            startZoomTitle: "5.1x",
+            endZoomTitle: "8.1x"
+        )
+    }
+
+    private func startCosineRecording(
+        startZoom: CGFloat,
+        endZoom: CGFloat,
+        camera: PhysicalCamera,
+        startZoomTitle: String,
+        endZoomTitle: String
+    ) {
+        guard isConfigured, !isRecording, !isPreparingRecordingStart, !isSwitchingCamera else { return }
+
+        isSwitchingCamera = true
+        statusText = "Switching to \(camera.title)"
+
+        switchToCamera(camera, startZoom: startZoom, endZoom: endZoom) { [weak self] result in
+            Task { @MainActor in
+                guard let self else { return }
+                self.isSwitchingCamera = false
+
+                switch result {
+                case .success:
+                    self.activePhysicalCameraTitle = camera.title
+                    self.startProgrammedRecording(
+                        startZoom: startZoom,
+                        endZoom: endZoom,
+                        initialHold: 4,
+                        rampDuration: 6,
+                        finalHold: 6,
+                        usesLinearRamp: false,
+                        usesCosineRamp: true,
+                        startZoomTitle: startZoomTitle,
+                        endZoomTitle: endZoomTitle
+                    )
+                case let .failure(error):
+                    self.statusText = error.localizedDescription
+                    self.alertMessage = error.localizedDescription
+                }
+            }
+        }
     }
 
     private func startProgrammedRecording(
@@ -487,11 +577,21 @@ final class CameraRecorder: NSObject, ObservableObject {
         rampDuration: TimeInterval,
         finalHold: TimeInterval,
         usesLinearRamp: Bool,
-        usesExponentialSpeedRamp: Bool,
+        usesCosineRamp: Bool,
         startZoomTitle: String,
         endZoomTitle: String
     ) {
         guard isConfigured, !isRecording, !isPreparingRecordingStart else { return }
+        guard let videoDevice,
+              endZoom <= videoDevice.activeFormat.videoMaxZoomFactor else {
+            let maximumZoom = videoDevice?.activeFormat.videoMaxZoomFactor ?? 1
+            statusText = "The active camera does not support \(endZoomTitle) zoom"
+            alertMessage = String(
+                format: "The active camera supports zoom only up to %.1fx.",
+                maximumZoom
+            )
+            return
+        }
 
         programmedStartZoomFactor = startZoom
         programmedEndZoomFactor = endZoom
@@ -499,7 +599,7 @@ final class CameraRecorder: NSObject, ObservableObject {
         programmedRampDuration = rampDuration
         programmedFinalHoldDuration = finalHold
         usesLinearZoomRamp = usesLinearRamp
-        self.usesExponentialSpeedRamp = usesExponentialSpeedRamp
+        usesCosineZoomRamp = usesCosineRamp
         programmedStartZoomTitle = startZoomTitle
         programmedEndZoomTitle = endZoomTitle
         recordingStageTimers = RecordingStageTimers()
@@ -711,13 +811,18 @@ final class CameraRecorder: NSObject, ObservableObject {
                     self.session.addOutput(self.videoDataOutput)
                     self.session.addOutput(self.audioDataOutput)
 
-                    try self.configure(device: videoDevice)
+                    try self.configure(
+                        device: videoDevice,
+                        startZoom: self.selectedStartZoom.factor,
+                        endZoom: self.selectedEndZoom.factor
+                    )
                     self.videoDevice = videoDevice
                     self.applyPreferredVideoEncoding()
                     self.applyStabilizationMode(self.selectedStabilizationMode)
 
                     Task { @MainActor in
                         self.isConfigured = true
+                        self.activePhysicalCameraTitle = "Main camera"
                         self.statusText = "Ready for 4K 60 fps capture"
                         self.focusModeState = .auto
                         self.focusStatusText = "Continuous autofocus"
@@ -731,7 +836,72 @@ final class CameraRecorder: NSObject, ObservableObject {
         }
     }
 
-    private func configure(device: AVCaptureDevice) throws {
+    private func switchToCamera(
+        _ camera: PhysicalCamera,
+        startZoom: CGFloat,
+        endZoom: CGFloat,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        sessionQueue.async {
+            do {
+                if self.videoDevice?.deviceType == camera.deviceType {
+                    guard let videoDevice = self.videoDevice,
+                          endZoom <= videoDevice.activeFormat.videoMaxZoomFactor else {
+                        throw RecorderError.unsupportedDevice
+                    }
+                    try self.setZoom(startZoom, cancelExistingRamp: true)
+                    completion(.success(()))
+                    return
+                }
+
+                guard let newDevice = AVCaptureDevice.default(
+                    camera.deviceType,
+                    for: .video,
+                    position: .back
+                ) else {
+                    throw RecorderError.missingRequestedCamera(camera.title)
+                }
+
+                try self.configure(device: newDevice, startZoom: startZoom, endZoom: endZoom)
+                let newInput = try AVCaptureDeviceInput(device: newDevice)
+                let oldInput = self.session.inputs
+                    .compactMap { $0 as? AVCaptureDeviceInput }
+                    .first { $0.device.hasMediaType(.video) }
+
+                self.session.beginConfiguration()
+                if let oldInput {
+                    self.session.removeInput(oldInput)
+                }
+
+                guard self.session.canAddInput(newInput) else {
+                    if let oldInput, self.session.canAddInput(oldInput) {
+                        self.session.addInput(oldInput)
+                    }
+                    self.session.commitConfiguration()
+                    throw RecorderError.cannotAddInput
+                }
+
+                self.session.addInput(newInput)
+                self.session.commitConfiguration()
+                self.videoDevice = newDevice
+                self.applyPreferredVideoEncoding()
+                self.applyStabilizationMode(self.selectedStabilizationMode)
+                completion(.success(()))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+
+    private func configure(
+        device: AVCaptureDevice?,
+        startZoom: CGFloat,
+        endZoom: CGFloat
+    ) throws {
+        guard let device else {
+            throw RecorderError.missingVideoDevice
+        }
+
         try device.lockForConfiguration()
         defer { device.unlockForConfiguration() }
 
@@ -742,10 +912,10 @@ final class CameraRecorder: NSObject, ObservableObject {
         device.activeFormat = format
         device.activeVideoMinFrameDuration = Constants.frameDuration
         device.activeVideoMaxFrameDuration = Constants.frameDuration
-        device.videoZoomFactor = selectedStartZoom.factor
+        device.videoZoomFactor = startZoom
         configureDefaultFocus(for: device)
 
-        guard device.activeFormat.videoMaxZoomFactor >= selectedEndZoom.factor else {
+        guard device.activeFormat.videoMaxZoomFactor >= endZoom else {
             throw RecorderError.unsupportedDevice
         }
     }
@@ -1235,8 +1405,8 @@ final class CameraRecorder: NSObject, ObservableObject {
             )
             let progress = max(0, min(rampElapsed / programmedRampDuration, 1))
             let zoomProgress: CGFloat
-            if usesExponentialSpeedRamp {
-                zoomProgress = exponentialSpeedRampProgress(at: rampElapsed)
+            if usesCosineZoomRamp {
+                zoomProgress = (1 - cos(.pi * progress)) / 2
             } else if usesLinearZoomRamp {
                 zoomProgress = progress
             } else {
@@ -1278,79 +1448,6 @@ final class CameraRecorder: NSObject, ObservableObject {
         Task { @MainActor in
             self.isZoomRampActive = isActive
         }
-    }
-
-    private func exponentialAccelerationDistance(
-        maximumSpeed: CGFloat,
-        duration: TimeInterval,
-        strength: CGFloat
-    ) -> CGFloat {
-        exponentialAccelerationDistance(
-            elapsed: duration,
-            maximumSpeed: maximumSpeed,
-            duration: duration,
-            strength: strength
-        )
-    }
-
-    private func exponentialAccelerationDistance(
-        elapsed: TimeInterval,
-        maximumSpeed: CGFloat,
-        duration: TimeInterval,
-        strength: CGFloat
-    ) -> CGFloat {
-        let normalizedTime = CGFloat(min(max(elapsed / duration, 0), 1))
-        let exponentialArea = ((exp(strength * normalizedTime) - 1) / strength)
-            - normalizedTime
-        return maximumSpeed
-            * CGFloat(duration)
-            * exponentialArea
-            / (exp(strength) - 1)
-    }
-
-    private func exponentialSpeedRampProgress(at elapsed: TimeInterval) -> CGFloat {
-        let maximumSpeed = programmedMaximumZoomSpeed
-        let accelerationDuration: TimeInterval = 3
-        let decelerationDuration: TimeInterval = 3
-        let strength: CGFloat = 4
-        let totalDistance = programmedEndZoomFactor - programmedStartZoomFactor
-        guard totalDistance > 0 else { return 1 }
-
-        let clampedElapsed = min(max(elapsed, 0), programmedRampDuration)
-        let accelerationDistance = exponentialAccelerationDistance(
-            maximumSpeed: maximumSpeed,
-            duration: accelerationDuration,
-            strength: strength
-        )
-        let decelerationStartTime = programmedRampDuration - decelerationDuration
-        let constantSpeedDistance = maximumSpeed
-            * CGFloat(decelerationStartTime - accelerationDuration)
-        let distance: CGFloat
-        if clampedElapsed < accelerationDuration {
-            distance = exponentialAccelerationDistance(
-                elapsed: clampedElapsed,
-                maximumSpeed: maximumSpeed,
-                duration: accelerationDuration,
-                strength: strength
-            )
-        } else if clampedElapsed < decelerationStartTime {
-            distance = accelerationDistance
-                + maximumSpeed * CGFloat(clampedElapsed - accelerationDuration)
-        } else {
-            let decelerationElapsed = clampedElapsed - decelerationStartTime
-            let remainingMirroredAccelerationDistance = exponentialAccelerationDistance(
-                elapsed: decelerationDuration - decelerationElapsed,
-                maximumSpeed: maximumSpeed,
-                duration: decelerationDuration,
-                strength: strength
-            )
-            distance = accelerationDistance
-                + constantSpeedDistance
-                + accelerationDistance
-                - remainingMirroredAccelerationDistance
-        }
-
-        return min(max(distance / totalDistance, 0), 1)
     }
 
     private func updateRecordingStageTimers(
