@@ -394,6 +394,7 @@ final class CameraRecorder: NSObject, ObservableObject {
     private nonisolated(unsafe) var programmedRampDuration = Constants.defaultRampDuration
     private nonisolated(unsafe) var programmedInitialHoldDuration = Constants.initialHold
     private nonisolated(unsafe) var programmedFinalHoldDuration = Constants.finalHold
+    private nonisolated(unsafe) var programmedMaximumZoomSpeed: CGFloat = 0.58
     private nonisolated(unsafe) var usesLinearZoomRamp = false
     private nonisolated(unsafe) var usesExponentialSpeedRamp = false
     private nonisolated(unsafe) var programmedStartZoomTitle = "\(Constants.defaultInitialZoom)x"
@@ -452,32 +453,30 @@ final class CameraRecorder: NSObject, ObservableObject {
         )
     }
 
-    func startTwoToFourNineRecording() {
+    func startTwoToFourEightRecording() {
         let startZoom: CGFloat = 2.0
-        let endZoom: CGFloat = 4.9
-        let maximumSpeed: CGFloat = 0.58
-        let accelerationDuration: TimeInterval = 2
-        let decelerationDuration: TimeInterval = 2
+        let endZoom: CGFloat = 4.8
+        let accelerationDuration: TimeInterval = 3
+        let decelerationDuration: TimeInterval = 3
         let accelerationCurveStrength: CGFloat = 4
-        let accelerationDistance = exponentialAccelerationDistance(
-            maximumSpeed: maximumSpeed,
+        let accelerationDistanceAtUnitSpeed = exponentialAccelerationDistance(
+            maximumSpeed: 1,
             duration: accelerationDuration,
             strength: accelerationCurveStrength
         )
-        let constantSpeedDuration = TimeInterval(
-            ((endZoom - startZoom) - (2 * accelerationDistance)) / maximumSpeed
-        )
+        let maximumSpeed = (endZoom - startZoom) / (2 * accelerationDistanceAtUnitSpeed)
+        programmedMaximumZoomSpeed = maximumSpeed
 
         startProgrammedRecording(
             startZoom: startZoom,
             endZoom: endZoom,
             initialHold: 4,
-            rampDuration: accelerationDuration + constantSpeedDuration + decelerationDuration,
+            rampDuration: accelerationDuration + decelerationDuration,
             finalHold: 6,
             usesLinearRamp: true,
             usesExponentialSpeedRamp: true,
             startZoomTitle: "2x",
-            endZoomTitle: "4.9x"
+            endZoomTitle: "4.8x"
         )
     }
 
@@ -1310,9 +1309,9 @@ final class CameraRecorder: NSObject, ObservableObject {
     }
 
     private func exponentialSpeedRampProgress(at elapsed: TimeInterval) -> CGFloat {
-        let maximumSpeed: CGFloat = 0.58
-        let accelerationDuration: TimeInterval = 2
-        let decelerationDuration: TimeInterval = 2
+        let maximumSpeed = programmedMaximumZoomSpeed
+        let accelerationDuration: TimeInterval = 3
+        let decelerationDuration: TimeInterval = 3
         let strength: CGFloat = 4
         let totalDistance = programmedEndZoomFactor - programmedStartZoomFactor
         guard totalDistance > 0 else { return 1 }

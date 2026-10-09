@@ -383,9 +383,9 @@ struct RecorderScreen: View {
                 HStack(spacing: 12) {
                     Button {
                         collapseControlsForRecording()
-                        recorder.startTwoToFourNineRecording()
+                        recorder.startTwoToFourEightRecording()
                     } label: {
-                        Text("2x-4.9x")
+                        Text("2x-4.8x")
                             .font(.caption.weight(.semibold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 9)
