@@ -442,6 +442,20 @@ struct RecorderScreen: View {
                 HStack(spacing: 12) {
                     Button {
                         collapseControlsForRecording()
+                        recorder.startOneOneToFourNineRecording()
+                    } label: {
+                        Text("1.1x-4.9x")
+                            .font(.caption.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 9)
+                            .background(recorder.isRecording ? ButtonPalette.programStart.opacity(0.45) : ButtonPalette.programStart)
+                            .foregroundStyle(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    .disabled(!recorder.isConfigured || recorder.isRecording)
+
+                    Button {
+                        collapseControlsForRecording()
                         recorder.startTwoToFourEightRecording()
                     } label: {
                         Text("2x-4.8x")
@@ -463,20 +477,6 @@ struct RecorderScreen: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 9)
                             .background(recorder.isRecording ? ButtonPalette.zoomStart.opacity(0.45) : ButtonPalette.zoomStart)
-                            .foregroundStyle(.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    }
-                    .disabled(!recorder.isConfigured || recorder.isRecording)
-
-                    Button {
-                        collapseControlsForRecording()
-                        recorder.startOneOneToFourNineRecording()
-                    } label: {
-                        Text("1.1x-4.9x")
-                            .font(.caption.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 9)
-                            .background(recorder.isRecording ? ButtonPalette.programStart.opacity(0.45) : ButtonPalette.programStart)
                             .foregroundStyle(.white)
                             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }
