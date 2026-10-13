@@ -26,7 +26,7 @@ struct PhotoExportView: View {
                 Section("On your Mac") {
                     Text("python3 ~/Xcode/iphone-photo-export.py 2026-09-19")
                         .font(.footnote.monospaced()).textSelection(.enabled)
-                    Text("Replace the date, then paste this iPhone’s connection URL when the script asks. Files go into Downloads/YYYY-MM-DD-all-iphone-media.")
+                    Text("Replace the date, then paste this iPhone’s connection URL when the script asks. Files go into Downloads/YYMMDD-iphone-media.")
                 }
                 Section("Status") { Text(server.status).textSelection(.enabled) }
                 Section {

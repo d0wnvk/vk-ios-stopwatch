@@ -14,6 +14,7 @@ import UniformTypeIdentifiers
 struct VideoPlayerView: View {
     private static let selectedFolderBookmarkKey = "selectedFolderBookmark"
 
+    @Binding var isAppTabBarVisible: Bool
     @State private var isFolderPickerPresented = false
     @State private var selectedFolder: URL?
     @State private var totalFileCount = 0
@@ -119,7 +120,8 @@ struct VideoPlayerView: View {
                         NavigationLink {
                             VideoPlayerScreen(
                                 videoFiles: videoFiles,
-                                startingAt: index
+                                startingAt: index,
+                                isAppTabBarVisible: $isAppTabBarVisible
                             )
                         } label: {
                             Label {

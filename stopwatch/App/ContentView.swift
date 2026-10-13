@@ -5,6 +5,7 @@ import SwiftUI
 struct ContentView: View {
     @State private var selectedTab = 2
     @State private var showPhotoExport = false
+    @State private var isAppTabBarVisible = true
     @State private var provisioningTimeRemaining = ProvisioningCountdown.text()
 
     private let provisioningRefreshTimer = Timer.publish(
@@ -47,7 +48,7 @@ struct ContentView: View {
                     Text("Recorder")
                 }
 
-            VideoPlayerView()
+            VideoPlayerView(isAppTabBarVisible: $isAppTabBarVisible)
                 .tag(5)
                 .tabItem {
                     Text("Video player")
@@ -55,11 +56,13 @@ struct ContentView: View {
         }
         .toolbar(.hidden, for: .tabBar)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            AppTabBar(
-                selection: $selectedTab,
-                showPhotoExport: $showPhotoExport,
-                provisioningTimeRemaining: provisioningTimeRemaining
-            )
+            if isAppTabBarVisible {
+                AppTabBar(
+                    selection: $selectedTab,
+                    showPhotoExport: $showPhotoExport,
+                    provisioningTimeRemaining: provisioningTimeRemaining
+                )
+            }
         }
         .onReceive(provisioningRefreshTimer) { date in
             provisioningTimeRemaining = ProvisioningCountdown.text(at: date)

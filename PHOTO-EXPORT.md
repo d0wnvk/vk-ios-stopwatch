@@ -13,7 +13,7 @@
    the copied URL between devices when configured; otherwise use Share or copy
    the address manually.
 
-Files go into `~/Downloads/2026-09-19-all-iphone-media/`. Exported media keeps
+Files go into `~/Downloads/260919-iphone-media/`. Exported media keeps
 the original name and adds its duration, for example `IMG_5979-00-12.MOV`.
 The Mac initiates every
 connection. It does not open a listening port or require an inbound firewall rule.

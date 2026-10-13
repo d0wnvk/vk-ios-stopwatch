@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 
 struct VideoPlayerScreen: View {
     let videoFiles: [URL]
+    @Binding var isAppTabBarVisible: Bool
     @State private var currentIndex: Int
     @State private var playbackErrorMessage: String?
     @State private var isRandomPlayback = true
@@ -22,8 +23,13 @@ struct VideoPlayerScreen: View {
     @State private var deviceStorageSummary = "iPhone: — total  •  — free"
     @StateObject private var controller = VLCPlayerController()
 
-    init(videoFiles: [URL], startingAt index: Int) {
+    init(
+        videoFiles: [URL],
+        startingAt index: Int,
+        isAppTabBarVisible: Binding<Bool>
+    ) {
         self.videoFiles = videoFiles
+        _isAppTabBarVisible = isAppTabBarVisible
         _currentIndex = State(initialValue: index)
     }
 
@@ -133,6 +139,9 @@ struct VideoPlayerScreen: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar(areControlsVisible ? .visible : .hidden, for: .navigationBar)
             .animation(.easeInOut(duration: 0.2), value: areControlsVisible)
+            .onAppear {
+                isAppTabBarVisible = false
+            }
             .task(id: currentIndex) {
                 playbackErrorMessage = nil
                 controller.play(url: currentVideo)
@@ -207,6 +216,7 @@ struct VideoPlayerScreen: View {
                 Text(copyResultMessage ?? "")
             }
             .onDisappear {
+                isAppTabBarVisible = true
                 copyTask?.cancel()
                 controller.setDiagnosticsEnabled(false)
                 controller.stop()
@@ -283,6 +293,17 @@ struct VideoPlayerScreen: View {
                 accessibilityLabel: controller.isPlaying ? "Pause" : "Play",
                 action: controller.togglePlayback
             )
+
+            largeSideButton(
+                title: isAppTabBarVisible ? "6 Hide Menu" : "6 Show Menu",
+                systemImage: isAppTabBarVisible ? "rectangle.bottomthird.inset.filled" : "rectangle.bottomthird.inset",
+                accessibilityLabel: isAppTabBarVisible
+                    ? "Hide stopwatch app menu buttons"
+                    : "Show stopwatch app menu buttons",
+                backgroundColor: isAppTabBarVisible ? .yellow : .white
+            ) {
+                isAppTabBarVisible.toggle()
+            }
 
             largeSideButton(
                 title: isRandomPlayback ? "7 Random On" : "7 Random Off",

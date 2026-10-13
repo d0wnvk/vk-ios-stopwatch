@@ -20,7 +20,7 @@ to connect to a listening Mac receiver.
 The date is the capture date. Downloads are written to:
 
 ```text
-~/Downloads/2026-09-19-all-iphone-media/
+~/Downloads/260919-iphone-media/
 ```
 
 Replace `2026-09-19` with the required date. Keep the Photos screen open until

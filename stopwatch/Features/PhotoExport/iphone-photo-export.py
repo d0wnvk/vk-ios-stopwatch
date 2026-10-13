@@ -168,7 +168,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('date', help='Capture day: YYYY-MM-DD')
     parser.add_argument('--iphone', help='Quoted connection URL shown by Stopwatch; otherwise prompted')
-    parser.add_argument('--destination', type=Path, help='Override ~/Downloads/YYYY-MM-DD-all-iphone-media')
+    parser.add_argument('--destination', type=Path, help='Override ~/Downloads/YYMMDD-iphone-media')
     parser.add_argument('--timezone', default=local_zone(), help='IANA capture-day timezone; default: Mac timezone')
     parser.add_argument('--dry-run', action='store_true', help='List matching media without downloading')
     args = parser.parse_args()
@@ -195,7 +195,8 @@ def main():
         for entry in files:
             print(entry['name'])
         return 2 if unavailable else 0
-    folder = (args.destination or (Path.home() / 'Downloads' / (args.date + '-all-iphone-media'))).expanduser().resolve()
+    folder_name = dt.date.fromisoformat(args.date).strftime('%y%m%d') + '-iphone-media'
+    folder = (args.destination or (Path.home() / 'Downloads' / folder_name)).expanduser().resolve()
     folder.mkdir(parents=True, exist_ok=True)
     report_path = folder / ('manifest-' + secrets.token_hex(8) + '.json')
     report = {'date': args.date, 'timezone': args.timezone, 'complete': False,
