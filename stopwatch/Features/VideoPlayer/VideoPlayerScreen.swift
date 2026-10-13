@@ -37,12 +37,15 @@ struct VideoPlayerScreen: View {
         ZStack {
             VLCPlayerView(controller: controller)
                 .background(.black)
+                .allowsHitTesting(false)
+                .zIndex(0)
 
             Color.clear
                 .contentShape(Rectangle())
                 .onTapGesture {
                     toggleControlsVisibility()
                 }
+                .zIndex(1)
 
             if areControlsVisible || areDiagnosticsVisible {
                 VStack {
@@ -124,6 +127,7 @@ struct VideoPlayerScreen: View {
                         .padding(.trailing, 12)
                 }
                 .transition(.move(edge: .leading).combined(with: .opacity))
+                .zIndex(3)
             }
 
             VStack {
@@ -133,6 +137,7 @@ struct VideoPlayerScreen: View {
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
+            .zIndex(3)
         }
             .ignoresSafeArea()
             .navigationTitle("")
@@ -144,7 +149,8 @@ struct VideoPlayerScreen: View {
             }
             .task(id: currentIndex) {
                 playbackErrorMessage = nil
-                controller.play(url: currentVideo)
+                await controller.play(url: currentVideo)
+                guard !Task.isCancelled else { return }
                 currentFolderSize = "Calculating…"
                 do {
                     let storage = try FolderMetadata.deviceStorage()
@@ -387,8 +393,6 @@ struct VideoPlayerScreen: View {
         }
         .padding(10)
         .scaleEffect(1.2, anchor: .leading)
-        .contentShape(Rectangle())
-        .onTapGesture {}
     }
 
     private var rightSideControls: some View {
@@ -446,8 +450,6 @@ struct VideoPlayerScreen: View {
         }
         .padding(10)
         .scaleEffect(1.2, anchor: .trailing)
-        .contentShape(Rectangle())
-        .onTapGesture {}
     }
 
     private func largeSideButton(
@@ -538,11 +540,15 @@ struct VideoPlayerScreen: View {
     }
 
     private func handlePlaybackFailure() async {
+        let failedIndex = currentIndex
         let fileName = currentVideo.lastPathComponent
         playbackErrorMessage = "Could not play “\(fileName)”. Trying the next video…"
 
         try? await Task.sleep(for: .seconds(3))
-        guard !Task.isCancelled else { return }
+        guard !Task.isCancelled, currentIndex == failedIndex else {
+            playbackErrorMessage = nil
+            return
+        }
 
         if canPlayNext {
             playNext()

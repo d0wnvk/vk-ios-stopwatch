@@ -33,6 +33,8 @@ final class VLCPlayerController: NSObject, ObservableObject, VLCMediaPlayerDeleg
     private let mediaPlayer = VLCMediaPlayer()
     private weak var outputView: UIView?
     private var shouldMuteOnStart = false
+    private var mediaChangeID = UUID()
+    private var isChangingMedia = false
     private var diagnosticsTask: Task<Void, Never>?
     private var diagnosticsSampler = PlaybackDiagnosticsSampler()
 
@@ -61,17 +63,37 @@ final class VLCPlayerController: NSObject, ObservableObject, VLCMediaPlayerDeleg
         applyDisplayMode()
     }
 
-    func play(url: URL) {
-        mediaPlayer.stop()
+    func play(url: URL) async {
+        let requestID = UUID()
+        mediaChangeID = requestID
+
+        if !isChangingMedia {
+            isChangingMedia = true
+            mediaPlayer.stop()
+            mediaPlayer.media = nil
+        }
+
         diagnosticsSampler.reset()
         diagnostics = .empty
-        mediaPlayer.media = VLCMedia(url: url)
+        isPlaying = false
+        isSeekable = false
+        position = 0
+        elapsedTime = 0
+        duration = 0
         videoParameters = Self.videoParameters(for: url, media: nil)
+
+        // libVLC stops and tears down its input asynchronously. Replacing the
+        // media immediately can mix callbacks from the old and new inputs.
+        try? await Task.sleep(for: .milliseconds(250))
+        guard !Task.isCancelled, mediaChangeID == requestID else { return }
+
+        mediaPlayer.media = VLCMedia(url: url)
         shouldMuteOnStart = true
         mediaPlayer.audio?.isMuted = true
         isMuted = true
         mediaPlayer.play()
         mediaPlayer.audio?.isMuted = true
+        isChangingMedia = false
     }
 
     func togglePlayback() {
@@ -147,6 +169,8 @@ final class VLCPlayerController: NSObject, ObservableObject, VLCMediaPlayerDeleg
     }
 
     func stop() {
+        mediaChangeID = UUID()
+        isChangingMedia = false
         setDiagnosticsEnabled(false)
         mediaPlayer.stop()
         mediaPlayer.media = nil
@@ -182,29 +206,65 @@ final class VLCPlayerController: NSObject, ObservableObject, VLCMediaPlayerDeleg
             }
         }
 
-        isPlaying = mediaPlayer.isPlaying
-        isSeekable = mediaPlayer.isSeekable
-        volumePercent = min(100, max(0, Int(mediaPlayer.audio?.volume ?? 0)))
-        if !shouldMuteOnStart {
-            isMuted = mediaPlayer.audio?.isMuted ?? false
+        let newIsPlaying = mediaPlayer.isPlaying
+        if isPlaying != newIsPlaying {
+            isPlaying = newIsPlaying
         }
 
-        if mediaPlayer.state == .error {
+        let newIsSeekable = mediaPlayer.isSeekable
+        if isSeekable != newIsSeekable {
+            isSeekable = newIsSeekable
+        }
+
+        let newVolumePercent = min(100, max(0, Int(mediaPlayer.audio?.volume ?? 0)))
+        if volumePercent != newVolumePercent {
+            volumePercent = newVolumePercent
+        }
+
+        if !shouldMuteOnStart {
+            let newIsMuted = mediaPlayer.audio?.isMuted ?? false
+            if isMuted != newIsMuted {
+                isMuted = newIsMuted
+            }
+        }
+
+        if mediaPlayer.state == .error, !isChangingMedia {
             failureCount += 1
-        } else if mediaPlayer.state == .ended {
+        } else if mediaPlayer.state == .ended, !isChangingMedia {
             completionCount += 1
         }
 
         if let media = mediaPlayer.media {
-            videoParameters = Self.videoParameters(for: media.url, media: media)
+            let newVideoParameters = Self.videoParameters(for: media.url, media: media)
+            if videoParameters != newVideoParameters {
+                videoParameters = newVideoParameters
+            }
         }
     }
 
     func mediaPlayerTimeChanged(_ notification: Notification) {
-        position = Double(mediaPlayer.position)
-        elapsedTime = max(0, Double(mediaPlayer.time.intValue) / 1_000)
-        duration = max(0, Double(mediaPlayer.media?.length.intValue ?? 0) / 1_000)
-        isSeekable = mediaPlayer.isSeekable
+        let newPosition = Double(mediaPlayer.position)
+        if abs(position - newPosition) >= 0.001 {
+            position = newPosition
+        }
+
+        let newElapsedTime = max(0, Double(mediaPlayer.time.intValue) / 1_000)
+        if abs(elapsedTime - newElapsedTime) >= 0.05 {
+            elapsedTime = newElapsedTime
+        }
+
+        let newDuration = max(
+            0,
+            Double(mediaPlayer.media?.length.intValue ?? 0) / 1_000
+        )
+        if duration != newDuration {
+            duration = newDuration
+        }
+
+        let newIsSeekable = mediaPlayer.isSeekable
+        if isSeekable != newIsSeekable {
+            isSeekable = newIsSeekable
+        }
     }
 
     private func applyDisplayMode() {
