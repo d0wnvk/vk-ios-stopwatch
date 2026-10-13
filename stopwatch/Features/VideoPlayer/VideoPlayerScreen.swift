@@ -12,6 +12,7 @@ struct VideoPlayerScreen: View {
     @State private var isRandomPlayback = true
     @State private var playbackHistory: [Int] = []
     @State private var areControlsVisible = true
+    @State private var isOrientationLocked = false
     @State private var controlsActivityID = UUID()
     @State private var areDiagnosticsVisible = false
     @State private var isDestinationPickerPresented = false
@@ -222,6 +223,8 @@ struct VideoPlayerScreen: View {
                 Text(copyResultMessage ?? "")
             }
             .onDisappear {
+                AppOrientationLock.unlock(in: playerWindowScene)
+                isOrientationLocked = false
                 isAppTabBarVisible = true
                 copyTask?.cancel()
                 controller.setDiagnosticsEnabled(false)
@@ -327,6 +330,19 @@ struct VideoPlayerScreen: View {
                 backgroundColor: areDiagnosticsVisible ? .yellow : .white
             ) {
                 areDiagnosticsVisible.toggle()
+            }
+
+            largeSideButton(
+                title: isOrientationLocked ? "15 Unlock" : "15 Lock Rotation",
+                systemImage: isOrientationLocked
+                    ? "lock.rotation"
+                    : "lock.rotation.open",
+                accessibilityLabel: isOrientationLocked
+                    ? "Unlock automatic screen rotation"
+                    : "Lock the current screen orientation",
+                backgroundColor: isOrientationLocked ? .yellow : .white
+            ) {
+                toggleOrientationLock()
             }
         }
         .frame(maxWidth: .infinity, alignment: .center)
@@ -494,6 +510,22 @@ struct VideoPlayerScreen: View {
             areControlsVisible = false
         } else {
             registerControlsInteraction()
+        }
+    }
+
+    private var playerWindowScene: UIWindowScene? {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first { $0.activationState == .foregroundActive }
+    }
+
+    private func toggleOrientationLock() {
+        if isOrientationLocked {
+            AppOrientationLock.unlock(in: playerWindowScene)
+            isOrientationLocked = false
+        } else if let playerWindowScene {
+            AppOrientationLock.lockCurrentOrientation(in: playerWindowScene)
+            isOrientationLocked = true
         }
     }
 

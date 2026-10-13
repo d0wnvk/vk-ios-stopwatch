@@ -1,5 +1,41 @@
 import UIKit
 
+@MainActor
+enum AppOrientationLock {
+    private(set) static var supportedOrientations: UIInterfaceOrientationMask = .all
+
+    static func lockCurrentOrientation(in windowScene: UIWindowScene) {
+        supportedOrientations = mask(for: windowScene.effectiveGeometry.interfaceOrientation)
+        apply(to: windowScene)
+    }
+
+    static func unlock(in windowScene: UIWindowScene?) {
+        supportedOrientations = .all
+        guard let windowScene else { return }
+        apply(to: windowScene)
+    }
+
+    private static func mask(for orientation: UIInterfaceOrientation) -> UIInterfaceOrientationMask {
+        switch orientation {
+        case .portrait: .portrait
+        case .portraitUpsideDown: .portraitUpsideDown
+        case .landscapeLeft: .landscapeLeft
+        case .landscapeRight: .landscapeRight
+        default: .all
+        }
+    }
+
+    private static func apply(to windowScene: UIWindowScene) {
+        windowScene.keyWindow?.rootViewController?
+            .setNeedsUpdateOfSupportedInterfaceOrientations()
+        windowScene.requestGeometryUpdate(
+            .iOS(interfaceOrientations: supportedOrientations)
+        ) { error in
+            print("Could not update player orientation: \(error.localizedDescription)")
+        }
+    }
+}
+
 enum VideoPlayerAppLifecycle {
     static func configuration(for sceneSession: UISceneSession) -> UISceneConfiguration {
         let configuration = UISceneConfiguration(
