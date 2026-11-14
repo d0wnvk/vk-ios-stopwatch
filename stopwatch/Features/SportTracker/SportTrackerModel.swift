@@ -1,10 +1,12 @@
 import AVFoundation
 import Combine
 import Foundation
+import UserNotifications
 
 @MainActor
 final class SportTrackerModel: ObservableObject {
     private static let datedCellSequence = [25, 29, 26, 30, 27, 31, 28, 32]
+    private static let timerNotificationIdentifier = "sport-tracker-timer-threshold"
 
     private struct SavedState: Codable {
         var layoutVersion: Int?
@@ -48,6 +50,8 @@ final class SportTrackerModel: ObservableObject {
     private var lastCellTapDates: [Int: Date] = [:]
     private var didPlayOneMinuteSound = false
     private var audioPlayer: AVAudioPlayer?
+    private var notificationSchedulingTask: Task<Void, Never>?
+    private var isNotificationSoundScheduled = false
 
     init() {
         guard let saved = PersistentAppState.load(SavedState.self, forKey: "sport-tracker")
@@ -80,6 +84,10 @@ final class SportTrackerModel: ObservableObject {
         sixLDate31 = saved.sixLDate31
         sixHDate28 = saved.sixHDate28
         sixHDate32 = saved.sixHDate32
+
+        if timerStartDate != nil {
+            scheduleTimerNotification()
+        }
     }
 
     func resetAll() {
@@ -93,6 +101,7 @@ final class SportTrackerModel: ObservableObject {
         lastCellTapDates.removeAll()
         didPlayOneMinuteSound = false
         stopAudio()
+        cancelTimerNotification()
         saveState()
     }
 
@@ -112,6 +121,7 @@ final class SportTrackerModel: ObservableObject {
     func incrementSoundInterval() {
         soundIntervalMinutes += 1
         didPlayOneMinuteSound = false
+        scheduleTimerNotification()
         saveState()
     }
 
@@ -135,6 +145,7 @@ final class SportTrackerModel: ObservableObject {
         if Self.tappableCellNumbers.contains(cellNumber) {
             flash(cellNumber)
         }
+        scheduleTimerNotification(at: now)
         saveState()
     }
 
@@ -174,6 +185,7 @@ final class SportTrackerModel: ObservableObject {
     func playSoundIfNeeded(at now: Date) {
         guard let timerStartDate,
               !didPlayOneMinuteSound,
+              !isNotificationSoundScheduled,
               now.timeIntervalSince(timerStartDate) >= TimeInterval(soundIntervalMinutes * 60)
         else { return }
 
@@ -195,6 +207,88 @@ final class SportTrackerModel: ObservableObject {
 
     func stopAudio() {
         audioPlayer?.stop()
+    }
+
+    private func scheduleTimerNotification(at now: Date = .now) {
+        guard let timerStartDate else {
+            cancelTimerNotification()
+            return
+        }
+
+        notificationSchedulingTask?.cancel()
+        isNotificationSoundScheduled = false
+
+        let intervalMinutes = soundIntervalMinutes
+        let fireDate = timerStartDate.addingTimeInterval(TimeInterval(intervalMinutes * 60))
+        let delay = max(1, fireDate.timeIntervalSince(now))
+
+        notificationSchedulingTask = Task { [weak self] in
+            let center = UNUserNotificationCenter.current()
+            center.removePendingNotificationRequests(
+                withIdentifiers: [Self.timerNotificationIdentifier]
+            )
+
+            let settings = await center.notificationSettings()
+            let isAuthorized: Bool
+            switch settings.authorizationStatus {
+            case .authorized, .provisional, .ephemeral:
+                isAuthorized = true
+            case .notDetermined:
+                isAuthorized = (try? await center.requestAuthorization(
+                    options: [.alert, .sound]
+                )) == true
+            case .denied:
+                isAuthorized = false
+            @unknown default:
+                isAuthorized = false
+            }
+
+            guard !Task.isCancelled, isAuthorized else { return }
+
+            let content = UNMutableNotificationContent()
+            content.title = "Sport plan 1"
+            content.body = "The cell 6 timer reached \(intervalMinutes) minutes."
+            content.sound = UNNotificationSound(
+                named: UNNotificationSoundName("notification-sound.caf")
+            )
+
+            let trigger = UNTimeIntervalNotificationTrigger(
+                timeInterval: delay,
+                repeats: false
+            )
+            let request = UNNotificationRequest(
+                identifier: Self.timerNotificationIdentifier,
+                content: content,
+                trigger: trigger
+            )
+
+            do {
+                try await center.add(request)
+                guard !Task.isCancelled else {
+                    center.removePendingNotificationRequests(
+                        withIdentifiers: [Self.timerNotificationIdentifier]
+                    )
+                    return
+                }
+                self?.isNotificationSoundScheduled = true
+            } catch {
+                self?.isNotificationSoundScheduled = false
+            }
+        }
+    }
+
+    private func cancelTimerNotification() {
+        notificationSchedulingTask?.cancel()
+        notificationSchedulingTask = nil
+        isNotificationSoundScheduled = false
+
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(
+            withIdentifiers: [Self.timerNotificationIdentifier]
+        )
+        center.removeDeliveredNotifications(
+            withIdentifiers: [Self.timerNotificationIdentifier]
+        )
     }
 
     private func flash(_ cellNumber: Int) {
