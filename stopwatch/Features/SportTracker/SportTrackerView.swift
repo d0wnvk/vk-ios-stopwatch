@@ -125,6 +125,15 @@ struct SportTrackerView: View {
                                                 .font(.headline.monospacedDigit())
                                                 .lineLimit(1)
                                                 .minimumScaleFactor(0.65)
+                                                .padding(.horizontal, 8)
+                                                .padding(.vertical, 4)
+                                                .overlay {
+                                                    RoundedRectangle(cornerRadius: 4)
+                                                        .stroke(
+                                                            Color(red: 0.55, green: 0.05, blue: 0.05),
+                                                            lineWidth: 2
+                                                        )
+                                                }
                                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                                                 .contentShape(Rectangle())
                                         }
@@ -149,10 +158,19 @@ struct SportTrackerView: View {
                                 if cellNumber == 8 {
                                     VStack(spacing: 0) {
                                         Button(action: model.resetDatedLabels) {
-                                            Text("Reset datas")
+                                            Text("Reset dates")
                                                 .font(.headline)
                                                 .lineLimit(1)
                                                 .minimumScaleFactor(0.65)
+                                                .padding(.horizontal, 8)
+                                                .padding(.vertical, 4)
+                                                .overlay {
+                                                    RoundedRectangle(cornerRadius: 4)
+                                                        .stroke(
+                                                            Color(red: 0.55, green: 0.05, blue: 0.05),
+                                                            lineWidth: 2
+                                                        )
+                                                }
                                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                                                 .contentShape(Rectangle())
                                         }
