@@ -13,10 +13,10 @@ struct SportTrackerView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let standardRowHeight = geometry.size.height / 7.65375
+            let standardRowHeight = geometry.size.height / 7.92375
 
             Grid(horizontalSpacing: 0, verticalSpacing: 0) {
-                ForEach([0, 1, 2, 3, 4, 6, 7, 8, 9, 11], id: \.self) { row in
+                ForEach([0, 1, 2, 3, 4, 6, 7, 8, 9, 10, 11], id: \.self) { row in
                     GridRow {
                         ForEach(0..<4, id: \.self) { column in
                             let cellNumber = row * 4 + column + 1
@@ -56,13 +56,11 @@ struct SportTrackerView: View {
                                         .allowsHitTesting(false)
                                 }
 
-                                if row != 0 && row != 1 && row != 6 && row != 11 {
-                                    Text(String(cellNumber))
-                                        .font(.system(size: 8, design: .monospaced))
-                                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                                        .padding(4)
-                                        .allowsHitTesting(false)
-                                }
+                                Text(String(cellNumber))
+                                    .font(.system(size: 8, design: .monospaced))
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                                    .padding(4)
+                                    .allowsHitTesting(false)
 
                                 if cellNumber == 1 {
                                     Button("Reset", action: model.resetAll)
@@ -102,7 +100,7 @@ struct SportTrackerView: View {
                                     }
                                 }
 
-                                if row != 0 && row != 1 && row != 6 && row != 11 {
+                                if row != 0 && row != 1 && row != 6 {
                                     if column != 0 {
                                         Text(String(model.rightNumbers[cellNumber - 1]))
                                             .font(.system(size: 24, weight: .bold, design: .monospaced))
@@ -167,7 +165,7 @@ struct SportTrackerView: View {
                                 .frame(
                                     height: row == 1
                                             ? standardRowHeight * 27 / 32
-                                        : row == 0 || row == 6 || row == 11
+                                        : row == 0 || row == 6 || row == 7 || row == 8
                                             ? standardRowHeight * 27 / 100
                                             : standardRowHeight
                                 )
@@ -256,14 +254,23 @@ struct SportTrackerView: View {
 
     @ViewBuilder
     private func cellContent(for number: Int) -> some View {
-        if number == 17 || number == 37 {
+        if number == 17 || number == 45 {
             VStack(spacing: 0) {
                 Text("ноги,")
                     .font(.title2)
-                Text(number == 37 ? "предплечье ладонь вверх" : "предплечье ладонь вниз")
-                    .font(.system(size: 11))
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
+                if number == 45 {
+                    Text("ладонь\nвверх")
+                        .font(.system(size: 16.5))
+                        .foregroundStyle(.yellow)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                } else {
+                    Text("ладонь\nвниз")
+                        .font(.system(size: 16.5))
+                        .foregroundStyle(.yellow)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let label = [
@@ -276,21 +283,22 @@ struct SportTrackerView: View {
             18: "плечи вверх",
             19: "развод",
             20: "свод",
-            30: "вверх",
-            31: "сводящие, не толкающие",
-            32: "отжим на брусьях",
-            34: "вверх",
-            35: "из положения лежа на спине",
-            36: "вниз",
-            38: "вперед",
-            39: "приседы",
-            40: "назад",
+            25: "5L",
+            38: "вверх",
+            39: "сводящие, не толкающие",
+            40: "отжим на брусьях",
+            42: "вверх",
+            43: "из положения лежа на спине",
+            44: "вниз",
+            46: "вперед",
+            47: "приседы",
+            48: "назад",
         ][number] {
             VStack(spacing: -7) {
                 ForEach(labelLines(for: number, label: label), id: \.self) { line in
                     Text(line)
                         .font(
-                            number == 31 || number == 35
+                            number == 39 || number == 43
                                 ? .system(size: 18.634)
                                 : number == 12 || number == 15
                                     ? .system(size: 21.28896)
@@ -314,15 +322,15 @@ struct SportTrackerView: View {
         case 14: return ["молотко-", "вый хват"]
         case 15: return ["сидя", "снизу-", "вверх"]
         case 18: return ["плечи", "вверх"]
-        case 31: return ["сводящие,", "не тол-", "кающие"]
-        case 32: return ["отжим на", "брусьях"]
-        case 35: return ["из положе-", "ния лежа", "на спине"]
+        case 39: return ["сводящие,", "не тол-", "кающие"]
+        case 40: return ["отжим на", "брусьях"]
+        case 43: return ["из положе-", "ния лежа", "на спине"]
         default: return [label]
         }
     }
 
     private func columnColor(for column: Int, row: Int) -> Color {
-        guard row != 0, row != 1, row != 6, row != 11 else {
+        guard row != 0, row != 1, row != 6 else {
             return backgroundColor
         }
 
@@ -340,13 +348,13 @@ struct SportTrackerView: View {
         case 2: "Up"
         case 3: "Middle"
         case 4: "Down"
-        case 5...8, 25...28: ""
+        case 5...8, 25...36: ""
         case 9: "спина"
         case 13: "бицепс"
-        case 17: "ноги, предплечье ладонь вниз"
-        case 29: "грудь"
-        case 33: "трицепс"
-        case 37: "ноги, предплечье ладонь вверх"
+        case 17: "ноги, ладонь вниз"
+        case 37: "грудь"
+        case 41: "трицепс"
+        case 45: "ноги, ладонь вверх"
         default: ""
         }
     }

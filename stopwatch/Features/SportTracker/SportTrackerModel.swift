@@ -5,6 +5,7 @@ import Foundation
 @MainActor
 final class SportTrackerModel: ObservableObject {
     private struct SavedState: Codable {
+        var layoutVersion: Int?
         var rightNumbers: [Int]
         var soundIntervalMinutes: Int
         var timerStartDate: Date?
@@ -15,9 +16,9 @@ final class SportTrackerModel: ObservableObject {
         10, 11, 12,
         14, 15, 16,
         18, 19, 20,
-        30, 31, 32,
-        34, 35, 36,
         38, 39, 40,
+        42, 43, 44,
+        46, 47, 48,
     ]
 
     @Published private(set) var rightNumbers = Array(repeating: 0, count: 48)
@@ -31,11 +32,25 @@ final class SportTrackerModel: ObservableObject {
     private var audioPlayer: AVAudioPlayer?
 
     init() {
-        guard let saved = PersistentAppState.load(SavedState.self, forKey: "sport-tracker"),
-              saved.rightNumbers.count == rightNumbers.count
+        guard let saved = PersistentAppState.load(SavedState.self, forKey: "sport-tracker")
         else { return }
 
-        rightNumbers = saved.rightNumbers
+        let migratedNumbers: [Int]
+        if saved.layoutVersion == 2, saved.rightNumbers.count == rightNumbers.count {
+            migratedNumbers = saved.rightNumbers
+        } else if saved.rightNumbers.count == 48 {
+            migratedNumbers = Array(
+                (Array(saved.rightNumbers.prefix(28))
+                + Array(repeating: 0, count: 8)
+                + Array(saved.rightNumbers.dropFirst(28))).prefix(48)
+            )
+        } else if saved.rightNumbers.count == 56 {
+            migratedNumbers = Array(saved.rightNumbers.prefix(48))
+        } else {
+            return
+        }
+
+        rightNumbers = migratedNumbers
         soundIntervalMinutes = max(1, saved.soundIntervalMinutes)
         timerStartDate = saved.timerStartDate
         independentTimerStartDate = saved.independentTimerStartDate
@@ -128,6 +143,7 @@ final class SportTrackerModel: ObservableObject {
     private func saveState() {
         PersistentAppState.save(
             SavedState(
+                layoutVersion: 2,
                 rightNumbers: rightNumbers,
                 soundIntervalMinutes: soundIntervalMinutes,
                 timerStartDate: timerStartDate,
