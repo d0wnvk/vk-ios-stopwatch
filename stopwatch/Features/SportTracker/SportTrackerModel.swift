@@ -125,6 +125,14 @@ final class SportTrackerModel: ObservableObject {
         saveState()
     }
 
+    func decrementSoundInterval() {
+        guard soundIntervalMinutes > 2 else { return }
+        soundIntervalMinutes -= 1
+        didPlayOneMinuteSound = false
+        scheduleTimerNotification()
+        saveState()
+    }
+
     func incrementCounter(for cellNumber: Int, at now: Date = Date()) {
         if Self.tappableCellNumbers.contains(cellNumber) {
             if let lastTapDate = lastCellTapDates[cellNumber],

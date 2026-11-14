@@ -126,16 +126,32 @@ struct SportTrackerView: View {
                                 }
 
                                 if cellNumber == 5 {
-                                    Button(action: model.incrementSoundInterval) {
-                                        Text(String(model.soundIntervalMinutes))
-                                            .font(.system(size: 24, weight: .bold, design: .monospaced))
-                                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                            .contentShape(Rectangle())
+                                    Text(String(model.soundIntervalMinutes))
+                                        .font(.system(size: 24, weight: .bold, design: .monospaced))
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                                    GeometryReader { buttonGeometry in
+                                        let spacing: CGFloat = 4
+                                        let originalButtonWidth = (buttonGeometry.size.width - spacing) / 2
+                                        let minusButtonWidth = originalButtonWidth * 0.7
+                                        let plusButtonWidth =
+                                            buttonGeometry.size.width - spacing - minusButtonWidth
+
+                                        HStack(spacing: spacing) {
+                                            counterButton("+") {
+                                                model.incrementSoundInterval()
+                                            }
+                                            .frame(width: plusButtonWidth)
+
+                                            counterButton("−") {
+                                                model.decrementSoundInterval()
+                                            }
+                                            .frame(width: minusButtonWidth)
+                                        }
                                     }
-                                    .buttonStyle(.plain)
-                                    .accessibilityLabel("Sound interval in minutes")
-                                    .accessibilityValue("\(model.soundIntervalMinutes)")
-                                    .accessibilityHint("Increases the sound interval by one minute")
+                                    .frame(height: 23.66)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                                    .padding(.bottom, 3)
                                 }
 
                                 if cellNumber == 6 {
