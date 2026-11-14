@@ -105,13 +105,6 @@ struct SportTrackerView: View {
                                     .padding(4)
                                     .allowsHitTesting(false)
 
-                                if cellNumber == 1 {
-                                    Button("Reset", action: model.resetAll)
-                                        .font(.title2.monospacedDigit())
-                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                        .buttonStyle(.plain)
-                                }
-
                                 if cellNumber == 5 {
                                     Button(action: model.incrementSoundInterval) {
                                         Text(String(model.soundIntervalMinutes))
@@ -125,30 +118,60 @@ struct SportTrackerView: View {
                                     .accessibilityHint("Increases the sound interval by one minute")
                                 }
 
-                                if cellNumber == 7 {
-                                    Button("Reset\ndatas", action: model.resetDatedLabels)
-                                        .font(.headline)
-                                        .multilineTextAlignment(.center)
-                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                        .buttonStyle(.plain)
-                                }
-
                                 if cellNumber == 6 {
-                                    TimelineView(.periodic(from: .now, by: 1)) { context in
-                                        Text(timerText(at: context.date, since: model.timerStartDate))
-                                            .font(.system(size: 32.34, weight: .bold, design: .monospaced))
-                                            .foregroundStyle(.yellow)
-                                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    VStack(spacing: 0) {
+                                        Button(action: model.resetAll) {
+                                            Text("Reset")
+                                                .font(.headline.monospacedDigit())
+                                                .lineLimit(1)
+                                                .minimumScaleFactor(0.65)
+                                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                                .contentShape(Rectangle())
+                                        }
+                                        .buttonStyle(.plain)
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                                        Divider()
+
+                                        TimelineView(.periodic(from: .now, by: 1)) { context in
+                                            Text(timerText(at: context.date, since: model.timerStartDate))
+                                                .font(.system(size: 32.34, weight: .bold, design: .monospaced))
+                                                .minimumScaleFactor(0.5)
+                                                .lineLimit(1)
+                                                .foregroundStyle(.yellow)
+                                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                        }
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     }
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                                 }
 
                                 if cellNumber == 8 {
-                                    TimelineView(.periodic(from: .now, by: 1)) { context in
-                                        Text(timerText(at: context.date, since: model.independentTimerStartDate))
-                                            .font(.system(size: 32.34, weight: .bold, design: .monospaced))
-                                            .foregroundStyle(Color(red: 0.45, green: 0.9, blue: 1.0))
-                                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    VStack(spacing: 0) {
+                                        Button(action: model.resetDatedLabels) {
+                                            Text("Reset datas")
+                                                .font(.headline)
+                                                .lineLimit(1)
+                                                .minimumScaleFactor(0.65)
+                                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                                .contentShape(Rectangle())
+                                        }
+                                        .buttonStyle(.plain)
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                                        Divider()
+
+                                        TimelineView(.periodic(from: .now, by: 1)) { context in
+                                            Text(timerText(at: context.date, since: model.independentTimerStartDate))
+                                                .font(.system(size: 32.34, weight: .bold, design: .monospaced))
+                                                .minimumScaleFactor(0.5)
+                                                .lineLimit(1)
+                                                .foregroundStyle(Color(red: 0.45, green: 0.9, blue: 1.0))
+                                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                        }
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     }
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                                 }
 
                                 if row != 0 && row != 1 && row != 6 && row != 7 {

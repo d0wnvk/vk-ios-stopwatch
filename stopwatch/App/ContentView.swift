@@ -140,6 +140,7 @@ private struct AppTabBar: View {
                 Text("Stopwatch")
                 Text(provisioningTimeRemaining)
                     .monospacedDigit()
+                    .foregroundStyle(Color(red: 0.45, green: 0.9, blue: 1.0))
             }
             .font(.caption)
             .multilineTextAlignment(.center)
