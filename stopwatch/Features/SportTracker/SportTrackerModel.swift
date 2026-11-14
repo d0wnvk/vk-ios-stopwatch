@@ -4,6 +4,8 @@ import Foundation
 
 @MainActor
 final class SportTrackerModel: ObservableObject {
+    private static let datedCellSequence = [25, 29, 26, 30, 27, 31, 28, 32]
+
     private struct SavedState: Codable {
         var layoutVersion: Int?
         var rightNumbers: [Int]
@@ -81,10 +83,21 @@ final class SportTrackerModel: ObservableObject {
     }
 
     func resetAll() {
+        let datedCellValues = Array(rightNumbers[24..<32])
         rightNumbers = Array(repeating: 0, count: rightNumbers.count)
+        rightNumbers.replaceSubrange(24..<32, with: datedCellValues)
         soundIntervalMinutes = 2
         timerStartDate = nil
         independentTimerStartDate = nil
+        flashingCells.removeAll()
+        lastCellTapDates.removeAll()
+        didPlayOneMinuteSound = false
+        stopAudio()
+        saveState()
+    }
+
+    func resetDatedLabels() {
+        rightNumbers.replaceSubrange(24..<32, with: repeatElement(0, count: 8))
         fiveLDate = nil
         fiveLDate29 = nil
         fiveHDate26 = nil
@@ -93,10 +106,6 @@ final class SportTrackerModel: ObservableObject {
         sixLDate31 = nil
         sixHDate28 = nil
         sixHDate32 = nil
-        flashingCells.removeAll()
-        lastCellTapDates.removeAll()
-        didPlayOneMinuteSound = false
-        stopAudio()
         saveState()
     }
 
@@ -136,6 +145,8 @@ final class SportTrackerModel: ObservableObject {
     }
 
     func markDatedLabel(in cellNumber: Int, at date: Date = Date()) {
+        guard canMarkDatedLabel(in: cellNumber) else { return }
+
         if cellNumber == 25 {
             fiveLDate = date
         } else if cellNumber == 26 {
@@ -154,6 +165,10 @@ final class SportTrackerModel: ObservableObject {
             sixHDate32 = date
         }
         saveState()
+    }
+
+    func canMarkDatedLabel(in cellNumber: Int) -> Bool {
+        Self.datedCellSequence.first(where: { datedLabelDate(in: $0) == nil }) == cellNumber
     }
 
     func playSoundIfNeeded(at now: Date) {
@@ -212,5 +227,19 @@ final class SportTrackerModel: ObservableObject {
             ),
             forKey: "sport-tracker"
         )
+    }
+
+    private func datedLabelDate(in cellNumber: Int) -> Date? {
+        switch cellNumber {
+        case 25: fiveLDate
+        case 26: fiveHDate26
+        case 27: sixLDate27
+        case 28: sixHDate28
+        case 29: fiveLDate29
+        case 30: fiveHDate30
+        case 31: sixLDate31
+        case 32: sixHDate32
+        default: nil
+        }
     }
 }

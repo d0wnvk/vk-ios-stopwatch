@@ -5,6 +5,7 @@ import UIKit
 
 struct SportTrackerView: View {
     @StateObject private var model = SportTrackerModel()
+    @State private var isShowingCell43Image = false
 
     private static let fiveLDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -33,20 +34,32 @@ struct SportTrackerView: View {
 
                             ZStack {
                                 if tappableCellNumbers.contains(cellNumber) {
-                                    Button {
-                                        model.incrementCounter(for: cellNumber)
-                                    } label: {
-                                        Color.clear
-                                            // Brief Color Flash: temporarily adds a light-cyan tint
-                                            // after an accepted tap.
-                                            .background(
-                                                model.flashingCells[cellNumber] != nil
-                                                    ? Color(red: 0.45, green: 0.9, blue: 1.0).opacity(0.3)
-                                                    : Color.clear
-                                            )
-                                            .contentShape(Rectangle())
+                                    if cellNumber == 43 {
+                                        Cell43PressArea(
+                                            onTap: {
+                                                model.incrementCounter(for: cellNumber)
+                                            },
+                                            onHoldChanged: { isHolding in
+                                                isShowingCell43Image = isHolding
+                                            }
+                                        )
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    } else {
+                                        Button {
+                                            model.incrementCounter(for: cellNumber)
+                                        } label: {
+                                            Color.clear
+                                                // Brief Color Flash: temporarily adds a light-cyan tint
+                                                // after an accepted tap.
+                                                .background(
+                                                    model.flashingCells[cellNumber] != nil
+                                                        ? Color(red: 0.45, green: 0.9, blue: 1.0).opacity(0.3)
+                                                        : Color.clear
+                                                )
+                                                .contentShape(Rectangle())
+                                        }
+                                        .buttonStyle(.plain)
                                     }
-                                    .buttonStyle(.plain)
 
                                     CellColorFillEffect(trigger: model.flashingCells[cellNumber])
                                         .allowsHitTesting(false)
@@ -63,6 +76,7 @@ struct SportTrackerView: View {
                                             .contentShape(Rectangle())
                                     }
                                     .buttonStyle(.plain)
+                                    .disabled(!model.canMarkDatedLabel(in: cellNumber))
                                 }
 
                                 cellContent(for: cellNumber)
@@ -109,6 +123,14 @@ struct SportTrackerView: View {
                                     .accessibilityLabel("Sound interval in minutes")
                                     .accessibilityValue("\(model.soundIntervalMinutes)")
                                     .accessibilityHint("Increases the sound interval by one minute")
+                                }
+
+                                if cellNumber == 7 {
+                                    Button("Reset\ndatas", action: model.resetDatedLabels)
+                                        .font(.headline)
+                                        .multilineTextAlignment(.center)
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                        .buttonStyle(.plain)
                                 }
 
                                 if cellNumber == 6 {
@@ -227,6 +249,20 @@ struct SportTrackerView: View {
         .padding(.bottom, 24)
         .background(backgroundColor)
         .foregroundStyle(.white)
+        .overlay {
+            if isShowingCell43Image {
+                ZStack {
+                    Color.black.opacity(0.65)
+
+                    Image("triceps-leza")
+                        .resizable()
+                        .scaledToFit()
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .padding(20)
+                }
+                .allowsHitTesting(false)
+            }
+        }
         .onReceive(soundTimer) { now in
             model.playSoundIfNeeded(at: now)
         }
@@ -295,7 +331,7 @@ struct SportTrackerView: View {
     private func cellContent(for number: Int) -> some View {
         if number == 25 || number == 26 || number == 27 || number == 28
             || number == 29 || number == 30 || number == 31 || number == 32 {
-            Text(datedLabel(for: number))
+            datedLabelText(for: number)
                 .font(.title2)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -359,7 +395,7 @@ struct SportTrackerView: View {
         }
     }
 
-    private func datedLabel(for cellNumber: Int) -> String {
+    private func datedLabelText(for cellNumber: Int) -> Text {
         let label: String
         let date: Date?
 
@@ -377,8 +413,18 @@ struct SportTrackerView: View {
             date = cellNumber == 25 ? model.fiveLDate : model.fiveLDate29
         }
 
-        guard let date else { return label }
-        return label + " " + Self.fiveLDateFormatter.string(from: date).lowercased()
+        if let date {
+            return Text(label + " " + Self.fiveLDateFormatter.string(from: date))
+        }
+
+        guard model.canMarkDatedLabel(in: cellNumber) else {
+            return Text(label)
+        }
+
+        let currentDate = Self.fiveLDateFormatter.string(from: Date())
+        return Text(label + " ")
+            + Text(currentDate)
+                .foregroundColor(Color(red: 0.55, green: 1.0, blue: 0.55))
     }
 
     private func labelLines(for number: Int, label: String) -> [String] {
@@ -423,6 +469,66 @@ struct SportTrackerView: View {
         case 41: "трицепс"
         case 45: "ноги, ладонь вверх"
         default: ""
+        }
+    }
+}
+
+private struct Cell43PressArea: UIViewRepresentable {
+    let onTap: () -> Void
+    let onHoldChanged: (Bool) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onTap: onTap, onHoldChanged: onHoldChanged)
+    }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.backgroundColor = .clear
+
+        let longPress = UILongPressGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handleLongPress(_:))
+        )
+        longPress.minimumPressDuration = 0.5
+
+        let tap = UITapGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handleTap)
+        )
+        tap.require(toFail: longPress)
+
+        view.addGestureRecognizer(longPress)
+        view.addGestureRecognizer(tap)
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.onTap = onTap
+        context.coordinator.onHoldChanged = onHoldChanged
+    }
+
+    final class Coordinator: NSObject {
+        var onTap: () -> Void
+        var onHoldChanged: (Bool) -> Void
+
+        init(onTap: @escaping () -> Void, onHoldChanged: @escaping (Bool) -> Void) {
+            self.onTap = onTap
+            self.onHoldChanged = onHoldChanged
+        }
+
+        @objc func handleTap() {
+            onTap()
+        }
+
+        @objc func handleLongPress(_ recognizer: UILongPressGestureRecognizer) {
+            switch recognizer.state {
+            case .began:
+                onHoldChanged(true)
+            case .ended, .cancelled, .failed:
+                onHoldChanged(false)
+            default:
+                break
+            }
         }
     }
 }
