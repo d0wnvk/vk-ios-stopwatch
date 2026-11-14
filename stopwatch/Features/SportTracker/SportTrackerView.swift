@@ -6,6 +6,7 @@ import UIKit
 struct SportTrackerView: View {
     @StateObject private var model = SportTrackerModel()
     @State private var activeExercisePreview: ExercisePreview?
+    @State private var areGridNumbersVisible = true
 
     private static let fiveLDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -93,17 +94,36 @@ struct SportTrackerView: View {
                                         .allowsHitTesting(false)
                                 }
 
-                                HStack(spacing: 3) {
-                                    Text(String(cellNumber))
-                                    if column == 0 {
-                                        Text(String(rowNumber))
-                                            .foregroundStyle(Color(red: 0.45, green: 0.9, blue: 1.0))
+                                if areGridNumbersVisible {
+                                    HStack(spacing: 3) {
+                                        Text(String(cellNumber))
+                                        if column == 0 {
+                                            Text(String(rowNumber))
+                                                .foregroundStyle(Color(red: 0.45, green: 0.9, blue: 1.0))
+                                        }
                                     }
+                                        .font(.system(size: 8, design: .monospaced))
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                                        .padding(4)
+                                        .allowsHitTesting(false)
                                 }
-                                    .font(.system(size: 8, design: .monospaced))
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                                    .padding(4)
-                                    .allowsHitTesting(false)
+
+                                if cellNumber == 1 {
+                                    Button {
+                                        areGridNumbersVisible.toggle()
+                                    } label: {
+                                        Text("rows/columns")
+                                            .font(.headline)
+                                            .lineLimit(2)
+                                            .minimumScaleFactor(0.65)
+                                            .multilineTextAlignment(.center)
+                                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                            .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityValue(areGridNumbersVisible ? "Visible" : "Hidden")
+                                    .accessibilityHint("Toggles cell and row numbers")
+                                }
 
                                 if cellNumber == 5 {
                                     Button(action: model.incrementSoundInterval) {
