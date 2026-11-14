@@ -6,6 +6,12 @@ import UIKit
 struct SportTrackerView: View {
     @StateObject private var model = SportTrackerModel()
 
+    private static let fiveLDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd.MM"
+        return formatter
+    }()
+
     private let soundTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     private let backgroundColor = Color(red: 0.27, green: 0.27, blue: 0.25)
@@ -44,6 +50,19 @@ struct SportTrackerView: View {
 
                                     CellColorFillEffect(trigger: model.flashingCells[cellNumber])
                                         .allowsHitTesting(false)
+                                }
+
+                                if cellNumber == 25 || cellNumber == 26
+                                    || cellNumber == 27 || cellNumber == 28
+                                    || cellNumber == 29 || cellNumber == 30
+                                    || cellNumber == 31 || cellNumber == 32 {
+                                    Button {
+                                        model.markDatedLabel(in: cellNumber)
+                                    } label: {
+                                        Color.clear
+                                            .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
                                 }
 
                                 cellContent(for: cellNumber)
@@ -172,13 +191,7 @@ struct SportTrackerView: View {
                             }
                                 .frame(maxWidth: .infinity)
                                 .frame(width: column == 0 ? firstColumnWidth : nil)
-                                .frame(
-                                    height: row == 1
-                                            ? standardRowHeight * 27 / 32
-                                        : row == 0 || row == 6 || row == 7 || row == 8
-                                            ? standardRowHeight * 27 / 100
-                                            : standardRowHeight
-                                )
+                                .frame(height: standardRowHeight * rowHeightMultiplier(for: row))
                                 // Scale Animation: slightly shrinks an accepted cell,
                                 // then springs it back to its normal size.
                                 .scaleEffect(
@@ -254,6 +267,21 @@ struct SportTrackerView: View {
         return String(format: "%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60)
     }
 
+    private func rowHeightMultiplier(for row: Int) -> CGFloat {
+        let otherRowsScale: CGFloat = 0.9666
+
+        if row == 6 || row == 7 {
+            return 0.27 * 1.44
+        }
+        if row == 1 {
+            return 0.84375 * otherRowsScale
+        }
+        if row == 0 {
+            return 0.27 * otherRowsScale
+        }
+        return otherRowsScale
+    }
+
     private var firstColumnWidth: CGFloat {
         let labels = ["Reset", "спина", "бицепс", "ноги", "грудь", "трицепс"]
         let labelFont = UIFont.preferredFont(forTextStyle: .title2)
@@ -265,7 +293,13 @@ struct SportTrackerView: View {
 
     @ViewBuilder
     private func cellContent(for number: Int) -> some View {
-        if number == 17 || number == 45 {
+        if number == 25 || number == 26 || number == 27 || number == 28
+            || number == 29 || number == 30 || number == 31 || number == 32 {
+            Text(datedLabel(for: number))
+                .font(.title2)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        } else if number == 17 || number == 45 {
             VStack(spacing: 0) {
                 Text("ноги,")
                     .font(.title2)
@@ -323,6 +357,28 @@ struct SportTrackerView: View {
             Text(cellLabel(for: number))
                 .font(.title2.monospacedDigit())
         }
+    }
+
+    private func datedLabel(for cellNumber: Int) -> String {
+        let label: String
+        let date: Date?
+
+        if cellNumber == 28 || cellNumber == 32 {
+            label = "6H"
+            date = cellNumber == 28 ? model.sixHDate28 : model.sixHDate32
+        } else if cellNumber == 27 || cellNumber == 31 {
+            label = "6L"
+            date = cellNumber == 27 ? model.sixLDate27 : model.sixLDate31
+        } else if cellNumber == 26 || cellNumber == 30 {
+            label = "5H"
+            date = cellNumber == 26 ? model.fiveHDate26 : model.fiveHDate30
+        } else {
+            label = "5L"
+            date = cellNumber == 25 ? model.fiveLDate : model.fiveLDate29
+        }
+
+        guard let date else { return label }
+        return label + " " + Self.fiveLDateFormatter.string(from: date).lowercased()
     }
 
     private func labelLines(for number: Int, label: String) -> [String] {
