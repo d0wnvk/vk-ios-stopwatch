@@ -129,7 +129,7 @@ struct SportTrackerView: View {
                                     }
                                 }
 
-                                if row != 0 && row != 1 && row != 6 {
+                                if row != 0 && row != 1 && row != 6 && row != 7 {
                                     if column != 0 {
                                         Text(String(model.rightNumbers[cellNumber - 1]))
                                             .font(.system(size: 24, weight: .bold, design: .monospaced))
@@ -397,7 +397,7 @@ struct SportTrackerView: View {
     }
 
     private func columnColor(for column: Int, row: Int) -> Color {
-        guard row != 0, row != 1, row != 6 else {
+        guard row != 0, row != 1, row != 6, row != 7 else {
             return backgroundColor
         }
 
