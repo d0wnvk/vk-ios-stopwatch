@@ -13,10 +13,14 @@ struct SportTrackerView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            let standardRowHeight = geometry.size.height / 7.92375
+            let standardRowHeight = geometry.size.height / 7.65375
+            let displayedRows = [0, 1, 2, 3, 4, 6, 7, 9, 10, 11]
 
             Grid(horizontalSpacing: 0, verticalSpacing: 0) {
-                ForEach([0, 1, 2, 3, 4, 6, 7, 8, 9, 10, 11], id: \.self) { row in
+                ForEach(Array(displayedRows.enumerated()), id: \.offset) { rowEntry in
+                    let rowNumber = rowEntry.offset + 1
+                    let row = rowEntry.element
+
                     GridRow {
                         ForEach(0..<4, id: \.self) { column in
                             let cellNumber = row * 4 + column + 1
@@ -56,7 +60,13 @@ struct SportTrackerView: View {
                                         .allowsHitTesting(false)
                                 }
 
-                                Text(String(cellNumber))
+                                HStack(spacing: 3) {
+                                    Text(String(cellNumber))
+                                    if column == 0 {
+                                        Text(String(rowNumber))
+                                            .foregroundStyle(Color(red: 0.45, green: 0.9, blue: 1.0))
+                                    }
+                                }
                                     .font(.system(size: 8, design: .monospaced))
                                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                                     .padding(4)
@@ -201,6 +211,7 @@ struct SportTrackerView: View {
             .frame(maxWidth: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.bottom, 24)
         .background(backgroundColor)
         .foregroundStyle(.white)
         .onReceive(soundTimer) { now in
