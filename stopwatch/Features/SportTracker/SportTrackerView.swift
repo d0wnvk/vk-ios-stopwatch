@@ -5,7 +5,7 @@ import UIKit
 
 struct SportTrackerView: View {
     @StateObject private var model = SportTrackerModel()
-    @State private var isShowingCell43Image = false
+    @State private var activeExercisePreview: ExercisePreview?
 
     private static let fiveLDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -34,13 +34,13 @@ struct SportTrackerView: View {
 
                             ZStack {
                                 if tappableCellNumbers.contains(cellNumber) {
-                                    if cellNumber == 43 {
-                                        Cell43PressArea(
+                                    if let preview = exercisePreview(for: cellNumber) {
+                                        ExercisePressArea(
                                             onTap: {
                                                 model.incrementCounter(for: cellNumber)
                                             },
                                             onHoldChanged: { isHolding in
-                                                isShowingCell43Image = isHolding
+                                                activeExercisePreview = isHolding ? preview : nil
                                             }
                                         )
                                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -250,16 +250,16 @@ struct SportTrackerView: View {
         .background(backgroundColor)
         .foregroundStyle(.white)
         .overlay {
-            if isShowingCell43Image {
+            if let preview = activeExercisePreview {
                 ZStack {
                     Color.black.opacity(0.65)
 
                     VStack(spacing: 8) {
-                        Text("triceps-leza.JPG")
+                        Text(preview.fileName)
                             .font(.headline)
                             .foregroundStyle(.white)
 
-                        Image("triceps-leza")
+                        Image(preview.assetName)
                             .resizable()
                             .scaledToFit()
                             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -274,6 +274,28 @@ struct SportTrackerView: View {
         }
         .onDisappear {
             model.stopAudio()
+        }
+    }
+
+    private func exercisePreview(for cellNumber: Int) -> ExercisePreview? {
+        switch cellNumber {
+        case 10:
+            ExercisePreview(
+                assetName: "spina-podtyagivaniya",
+                fileName: "spina-podtyagivaniya.JPG"
+            )
+        case 39:
+            ExercisePreview(
+                assetName: "grud-middle",
+                fileName: "grud-middle.JPG"
+            )
+        case 43:
+            ExercisePreview(
+                assetName: "triceps-leza",
+                fileName: "triceps-leza.JPG"
+            )
+        default:
+            nil
         }
     }
 
@@ -479,7 +501,12 @@ struct SportTrackerView: View {
     }
 }
 
-private struct Cell43PressArea: UIViewRepresentable {
+private struct ExercisePreview {
+    let assetName: String
+    let fileName: String
+}
+
+private struct ExercisePressArea: UIViewRepresentable {
     let onTap: () -> Void
     let onHoldChanged: (Bool) -> Void
 
