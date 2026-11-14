@@ -67,7 +67,7 @@ final class SportTrackerModel: ObservableObject {
         }
 
         rightNumbers = migratedNumbers
-        soundIntervalMinutes = max(1, saved.soundIntervalMinutes)
+        soundIntervalMinutes = max(2, saved.soundIntervalMinutes)
         timerStartDate = saved.timerStartDate
         independentTimerStartDate = saved.independentTimerStartDate
         fiveLDate = saved.fiveLDate
