@@ -4,6 +4,13 @@ import Foundation
 
 @MainActor
 final class SportTrackerModel: ObservableObject {
+    private struct SavedState: Codable {
+        var rightNumbers: [Int]
+        var soundIntervalMinutes: Int
+        var timerStartDate: Date?
+        var independentTimerStartDate: Date?
+    }
+
     static let tappableCellNumbers: Set<Int> = [
         10, 11, 12,
         14, 15, 16,
@@ -23,6 +30,17 @@ final class SportTrackerModel: ObservableObject {
     private var didPlayOneMinuteSound = false
     private var audioPlayer: AVAudioPlayer?
 
+    init() {
+        guard let saved = PersistentAppState.load(SavedState.self, forKey: "sport-tracker"),
+              saved.rightNumbers.count == rightNumbers.count
+        else { return }
+
+        rightNumbers = saved.rightNumbers
+        soundIntervalMinutes = max(1, saved.soundIntervalMinutes)
+        timerStartDate = saved.timerStartDate
+        independentTimerStartDate = saved.independentTimerStartDate
+    }
+
     func resetAll() {
         rightNumbers = Array(repeating: 0, count: rightNumbers.count)
         soundIntervalMinutes = 1
@@ -32,11 +50,13 @@ final class SportTrackerModel: ObservableObject {
         lastCellTapDates.removeAll()
         didPlayOneMinuteSound = false
         stopAudio()
+        saveState()
     }
 
     func incrementSoundInterval() {
         soundIntervalMinutes += 1
         didPlayOneMinuteSound = false
+        saveState()
     }
 
     func incrementCounter(for cellNumber: Int, at now: Date = Date()) {
@@ -59,11 +79,13 @@ final class SportTrackerModel: ObservableObject {
         if Self.tappableCellNumbers.contains(cellNumber) {
             flash(cellNumber)
         }
+        saveState()
     }
 
     func decrementCounter(for cellNumber: Int) {
         guard rightNumbers[cellNumber - 1] > 0 else { return }
         rightNumbers[cellNumber - 1] -= 1
+        saveState()
     }
 
     func playSoundIfNeeded(at now: Date) {
@@ -101,5 +123,17 @@ final class SportTrackerModel: ObservableObject {
             guard let self, flashingCells[cellNumber] == flashID else { return }
             flashingCells[cellNumber] = nil
         }
+    }
+
+    private func saveState() {
+        PersistentAppState.save(
+            SavedState(
+                rightNumbers: rightNumbers,
+                soundIntervalMinutes: soundIntervalMinutes,
+                timerStartDate: timerStartDate,
+                independentTimerStartDate: independentTimerStartDate
+            ),
+            forKey: "sport-tracker"
+        )
     }
 }

@@ -3,7 +3,7 @@ import Foundation
 import SwiftUI
 
 struct ContentView: View {
-    @State private var selectedTab = 2
+    @State private var selectedTab: Int
     @State private var showPhotoExport = false
     @State private var isAppTabBarVisible = true
     @State private var provisioningTimeRemaining = ProvisioningCountdown.text()
@@ -13,6 +13,12 @@ struct ContentView: View {
         on: .main,
         in: .common
     ).autoconnect()
+
+    init() {
+        _selectedTab = State(
+            initialValue: PersistentAppState.load(Int.self, forKey: "selected-tab") ?? 2
+        )
+    }
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -67,38 +73,63 @@ struct ContentView: View {
         .onReceive(provisioningRefreshTimer) { date in
             provisioningTimeRemaining = ProvisioningCountdown.text(at: date)
         }
+        .onChange(of: selectedTab) { _, newValue in
+            PersistentAppState.save(newValue, forKey: "selected-tab")
+        }
         .sheet(isPresented: $showPhotoExport) { PhotoExportView() }
     }
 }
 
 private struct AppTabBar: View {
+    private static let buttonCount: CGFloat = 7
+
     @Binding var selection: Int
     @Binding var showPhotoExport: Bool
     let provisioningTimeRemaining: String
 
     var body: some View {
-        HStack(spacing: 0) {
-            stopwatchButton
-            tabButton(title: "Eye Break", tag: 1)
-            tabButton(title: "Sport plan 1", tag: 2)
-            tabButton(title: "Insta 360", tag: 3)
-            tabButton(title: "Recorder", tag: 4)
-            tabButton(title: "Video player", tag: 5)
-            Button { showPhotoExport = true } label: {
-                Text("Photos to mac")
-                    .font(.caption)
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, minHeight: 54)
+        GeometryReader { geometry in
+            let buttonWidth = geometry.size.width / Self.buttonCount
+
+            HStack(spacing: 0) {
+                stopwatchButton
+                    .frame(width: buttonWidth)
+                    .tabButtonOutline()
+                tabButton(title: "Eye Break", tag: 1)
+                    .frame(width: buttonWidth)
+                    .tabButtonOutline()
+                tabButton(title: "Sport plan 1", tag: 2)
+                    .frame(width: buttonWidth)
+                    .tabButtonOutline()
+                tabButton(title: "Insta 360", tag: 3)
+                    .frame(width: buttonWidth)
+                    .tabButtonOutline()
+                tabButton(title: "Recorder", tag: 4)
+                    .frame(width: buttonWidth)
+                    .tabButtonOutline()
+                tabButton(title: "Video player", tag: 5)
+                    .frame(width: buttonWidth)
+                    .tabButtonOutline()
+                Button { showPhotoExport = true } label: {
+                    Text("Photos to mac")
+                        .font(.caption)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, minHeight: 54)
+                }
+                .buttonStyle(.plain)
+                .frame(width: buttonWidth)
+                .tabButtonOutline()
             }
-            .buttonStyle(.plain)
+            .padding(.top, 7)
+            .padding(.bottom, 4)
+            .background(.bar)
+            .overlay(alignment: .top) {
+                Divider()
+            }
         }
-        .padding(.top, 7)
-        .padding(.bottom, 4)
+        .frame(height: 65)
         .background(.bar)
-        .overlay(alignment: .top) {
-            Divider()
-        }
     }
 
     private var stopwatchButton: some View {
@@ -134,6 +165,15 @@ private struct AppTabBar: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+}
+
+private extension View {
+    func tabButtonOutline() -> some View {
+        overlay {
+            Rectangle()
+                .stroke(Color.yellow, lineWidth: 1)
+        }
     }
 }
 

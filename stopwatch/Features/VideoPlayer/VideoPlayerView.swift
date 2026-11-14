@@ -155,9 +155,10 @@ struct VideoPlayerView: View {
     private func restorePreviouslySelectedFolder() {
         guard
             selectedFolder == nil,
-            let bookmark = UserDefaults.standard.data(
+            let bookmark = PersistentAppState.load(
+                Data.self,
                 forKey: Self.selectedFolderBookmarkKey
-            )
+            ) ?? UserDefaults.standard.data(forKey: Self.selectedFolderBookmarkKey)
         else { return }
 
         do {
@@ -190,6 +191,10 @@ struct VideoPlayerView: View {
                     relativeTo: nil
                 )
                 UserDefaults.standard.set(
+                    bookmark,
+                    forKey: Self.selectedFolderBookmarkKey
+                )
+                PersistentAppState.save(
                     bookmark,
                     forKey: Self.selectedFolderBookmarkKey
                 )

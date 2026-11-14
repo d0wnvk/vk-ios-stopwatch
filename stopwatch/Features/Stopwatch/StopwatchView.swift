@@ -3,14 +3,27 @@ import Foundation
 import SwiftUI
 
 struct StopwatchView: View {
-    @State private var elapsedTime: TimeInterval = 0
+    private struct SavedState: Codable {
+        var elapsedTime: TimeInterval
+        var startDate: Date?
+        var laps: [TimeInterval]
+    }
+
+    @State private var elapsedTime: TimeInterval
     @State private var startDate: Date?
-    @State private var laps: [TimeInterval] = []
+    @State private var laps: [TimeInterval]
 
     private let timer = Timer.publish(every: 0.01, on: .main, in: .common).autoconnect()
 
     private var isRunning: Bool {
         startDate != nil
+    }
+
+    init() {
+        let saved = PersistentAppState.load(SavedState.self, forKey: "stopwatch")
+        _elapsedTime = State(initialValue: saved?.elapsedTime ?? 0)
+        _startDate = State(initialValue: saved?.startDate)
+        _laps = State(initialValue: saved?.laps ?? [])
     }
 
     var body: some View {
@@ -62,10 +75,15 @@ struct StopwatchView: View {
 
     private func startStopwatch() {
         startDate = Date().addingTimeInterval(-elapsedTime)
+        saveState()
     }
 
     private func stopStopwatch() {
+        if let startDate {
+            elapsedTime = Date().timeIntervalSince(startDate)
+        }
         startDate = nil
+        saveState()
     }
 
     private func addLap() {
@@ -75,12 +93,21 @@ struct StopwatchView: View {
         if isRunning {
             startDate = Date()
         }
+        saveState()
     }
 
     private func resetStopwatch() {
         startDate = nil
         elapsedTime = 0
         laps.removeAll()
+        saveState()
+    }
+
+    private func saveState() {
+        PersistentAppState.save(
+            SavedState(elapsedTime: elapsedTime, startDate: startDate, laps: laps),
+            forKey: "stopwatch"
+        )
     }
 
     private func stopwatchButton(
