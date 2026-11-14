@@ -254,11 +254,17 @@ struct SportTrackerView: View {
                 ZStack {
                     Color.black.opacity(0.65)
 
-                    Image("triceps-leza")
-                        .resizable()
-                        .scaledToFit()
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .padding(20)
+                    VStack(spacing: 8) {
+                        Text("triceps-leza.JPG")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+
+                        Image("triceps-leza")
+                            .resizable()
+                            .scaledToFit()
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    }
+                    .padding(20)
                 }
                 .allowsHitTesting(false)
             }
