@@ -83,6 +83,19 @@ struct SportTrackerView: View {
                                 cellContent(for: cellNumber)
                                     .allowsHitTesting(false)
 
+                                if exercisePreview(for: cellNumber) != nil {
+                                    Image(systemName: "eye")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(.white)
+                                        .frame(
+                                            maxWidth: .infinity,
+                                            maxHeight: .infinity,
+                                            alignment: .bottomLeading
+                                        )
+                                        .padding(6)
+                                        .allowsHitTesting(false)
+                                }
+
                                 if tappableCellNumbers.contains(cellNumber) {
                                     CellRippleEffect(trigger: model.flashingCells[cellNumber])
                                         .allowsHitTesting(false)
@@ -112,11 +125,17 @@ struct SportTrackerView: View {
                                     Button {
                                         areGridNumbersVisible.toggle()
                                     } label: {
-                                        Text("rows/columns")
+                                        Text("show numbrs")
                                             .font(.headline)
                                             .lineLimit(2)
                                             .minimumScaleFactor(0.65)
                                             .multilineTextAlignment(.center)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .overlay {
+                                                RoundedRectangle(cornerRadius: 4)
+                                                    .stroke(Color.red, lineWidth: 2)
+                                            }
                                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                                             .contentShape(Rectangle())
                                     }
@@ -166,7 +185,7 @@ struct SportTrackerView: View {
                                                 .overlay {
                                                     RoundedRectangle(cornerRadius: 4)
                                                         .stroke(
-                                                            Color(red: 0.55, green: 0.05, blue: 0.05),
+                                                            Color.red,
                                                             lineWidth: 2
                                                         )
                                                 }
@@ -203,7 +222,7 @@ struct SportTrackerView: View {
                                                 .overlay {
                                                     RoundedRectangle(cornerRadius: 4)
                                                         .stroke(
-                                                            Color(red: 0.55, green: 0.05, blue: 0.05),
+                                                            Color.red,
                                                             lineWidth: 2
                                                         )
                                                 }
@@ -263,16 +282,18 @@ struct SportTrackerView: View {
                                             let minusButtonWidth = originalButtonWidth * 0.7
                                             let plusButtonWidth =
                                                 buttonGeometry.size.width - spacing - minusButtonWidth
+                                            let displayedPlusButtonWidth =
+                                                cellNumber == 2 ? minusButtonWidth : plusButtonWidth
 
                                             HStack(spacing: spacing) {
                                                 if !tappableCellNumbers.contains(cellNumber) {
                                                     counterButton("+") {
                                                         model.incrementCounter(for: cellNumber)
                                                     }
-                                                    .frame(width: plusButtonWidth)
+                                                    .frame(width: displayedPlusButtonWidth)
                                                 } else {
                                                     Color.clear
-                                                        .frame(width: plusButtonWidth)
+                                                        .frame(width: displayedPlusButtonWidth)
                                                         .frame(height: 23.66)
                                                 }
 
@@ -331,15 +352,20 @@ struct SportTrackerView: View {
                 ZStack {
                     Color.black.opacity(0.65)
 
-                    VStack(spacing: 8) {
-                        Text(preview.fileName)
-                            .font(.headline)
-                            .foregroundStyle(.white)
+                    HStack(spacing: 12) {
+                        ForEach(preview.images) { previewImage in
+                            VStack(spacing: 8) {
+                                Text(previewImage.fileName)
+                                    .font(.headline)
+                                    .foregroundStyle(.white)
 
-                        Image(preview.assetName)
-                            .resizable()
-                            .scaledToFit()
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                Image(previewImage.assetName)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
                     }
                     .padding(20)
                 }
@@ -358,18 +384,59 @@ struct SportTrackerView: View {
         switch cellNumber {
         case 10:
             ExercisePreview(
-                assetName: "spina-podtyagivaniya",
-                fileName: "spina-podtyagivaniya.JPG"
+                images: [
+                    ExercisePreviewImage(
+                        assetName: "up-back-01",
+                        fileName: "up-back-01.jpg"
+                    ),
+                    ExercisePreviewImage(assetName: "up-back-02", fileName: "up-back-02.jpg")
+                ]
+            )
+        case 11:
+            ExercisePreview(
+                images: [
+                    ExercisePreviewImage(
+                        assetName: "middle-back-45gr-01",
+                        fileName: "middle-back-45gr-01.jpg"
+                    )
+                ]
+            )
+        case 15:
+            ExercisePreview(
+                images: [
+                    ExercisePreviewImage(
+                        assetName: "middle-biceps-01",
+                        fileName: "middle-biceps-01.jpg"
+                    )
+                ]
+            )
+        case 38:
+            ExercisePreview(
+                images: [
+                    ExercisePreviewImage(assetName: "up-chest-01", fileName: "up-chest-01.jpg"),
+                    ExercisePreviewImage(assetName: "up-chest-02", fileName: "up-chest-02.jpg")
+                ]
             )
         case 39:
             ExercisePreview(
-                assetName: "grud-middle",
-                fileName: "grud-middle.JPG"
+                images: [
+                    ExercisePreviewImage(assetName: "grud-middle", fileName: "grud-middle.JPG")
+                ]
+            )
+        case 40:
+            ExercisePreview(
+                images: [
+                    ExercisePreviewImage(
+                        assetName: "down-chest-01",
+                        fileName: "down-chest-01.jpg"
+                    )
+                ]
             )
         case 43:
             ExercisePreview(
-                assetName: "triceps-leza",
-                fileName: "triceps-leza.JPG"
+                images: [
+                    ExercisePreviewImage(assetName: "triceps-leza", fileName: "triceps-leza.JPG")
+                ]
             )
         default:
             nil
@@ -579,6 +646,11 @@ struct SportTrackerView: View {
 }
 
 private struct ExercisePreview {
+    let images: [ExercisePreviewImage]
+}
+
+private struct ExercisePreviewImage: Identifiable {
+    var id: String { assetName }
     let assetName: String
     let fileName: String
 }
