@@ -21,7 +21,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         _ application: UIApplication,
         supportedInterfaceOrientationsFor window: UIWindow?
     ) -> UIInterfaceOrientationMask {
-        AppOrientationLock.supportedOrientations
+        if PersistentAppState.load(Int.self, forKey: "selected-tab") == 2 {
+            return .portrait
+        }
+        return AppOrientationLock.supportedOrientations
     }
 
     func application(

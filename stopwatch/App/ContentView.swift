@@ -1,6 +1,7 @@
 import Combine
 import Foundation
 import SwiftUI
+import UIKit
 
 struct ContentView: View {
     @State private var selectedTab: Int
@@ -45,7 +46,7 @@ struct ContentView: View {
             Insta360RecorderScreen()
                 .tag(3)
                 .tabItem {
-                    Text("Insta 360")
+                    Text("Insta\n360")
                 }
 
             RecorderScreen()
@@ -73,10 +74,24 @@ struct ContentView: View {
         .onReceive(provisioningRefreshTimer) { date in
             provisioningTimeRemaining = ProvisioningCountdown.text(at: date)
         }
+        .onAppear {
+            updateSupportedOrientations(for: selectedTab)
+        }
         .onChange(of: selectedTab) { _, newValue in
             PersistentAppState.save(newValue, forKey: "selected-tab")
+            updateSupportedOrientations(for: newValue)
         }
         .sheet(isPresented: $showPhotoExport) { PhotoExportView() }
+    }
+
+    private func updateSupportedOrientations(for tab: Int) {
+        let applicationScenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .filter { $0.session.role == .windowApplication }
+        let windowScene = applicationScenes.first { $0.activationState == .foregroundActive }
+            ?? applicationScenes.first
+
+        AppOrientationLock.setSportTrackerPortraitLocked(tab == 2, in: windowScene)
     }
 }
 
@@ -101,7 +116,7 @@ private struct AppTabBar: View {
                 tabButton(title: "Sport plan 1", tag: 2)
                     .frame(width: buttonWidth)
                     .tabButtonOutline()
-                tabButton(title: "Insta 360", tag: 3)
+                tabButton(title: "Insta\n360", tag: 3)
                     .frame(width: buttonWidth)
                     .tabButtonOutline()
                 tabButton(title: "Recorder", tag: 4)

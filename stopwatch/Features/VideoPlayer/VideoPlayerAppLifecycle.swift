@@ -3,16 +3,25 @@ import UIKit
 @MainActor
 enum AppOrientationLock {
     private(set) static var supportedOrientations: UIInterfaceOrientationMask = .all
+    private static var isSportTrackerPortraitLocked = false
+    private static var playerOrientation: UIInterfaceOrientationMask?
+
+    static func setSportTrackerPortraitLocked(
+        _ isLocked: Bool,
+        in windowScene: UIWindowScene?
+    ) {
+        isSportTrackerPortraitLocked = isLocked
+        updateSupportedOrientations(in: windowScene)
+    }
 
     static func lockCurrentOrientation(in windowScene: UIWindowScene) {
-        supportedOrientations = mask(for: windowScene.effectiveGeometry.interfaceOrientation)
-        apply(to: windowScene)
+        playerOrientation = mask(for: windowScene.effectiveGeometry.interfaceOrientation)
+        updateSupportedOrientations(in: windowScene)
     }
 
     static func unlock(in windowScene: UIWindowScene?) {
-        supportedOrientations = .all
-        guard let windowScene else { return }
-        apply(to: windowScene)
+        playerOrientation = nil
+        updateSupportedOrientations(in: windowScene)
     }
 
     private static func mask(for orientation: UIInterfaceOrientation) -> UIInterfaceOrientationMask {
@@ -23,6 +32,14 @@ enum AppOrientationLock {
         case .landscapeRight: .landscapeRight
         default: .all
         }
+    }
+
+    private static func updateSupportedOrientations(in windowScene: UIWindowScene?) {
+        supportedOrientations = isSportTrackerPortraitLocked
+            ? .portrait
+            : playerOrientation ?? .all
+        guard let windowScene else { return }
+        apply(to: windowScene)
     }
 
     private static func apply(to windowScene: UIWindowScene) {
