@@ -8,6 +8,9 @@ struct ContentView: View {
     @State private var showPhotoExport = false
     @State private var isAppTabBarVisible = true
     @State private var provisioningTimeRemaining = ProvisioningCountdown.text()
+    @State private var detailedProvisioningTimeRemaining = ProvisioningCountdown.text(
+        includesMinutes: true
+    )
 
     private let provisioningRefreshTimer = Timer.publish(
         every: 60,
@@ -37,7 +40,7 @@ struct ContentView: View {
                     Text("Eye Break")
                 }
 
-            SportTrackerView()
+            SportTrackerView(provisioningTimeRemaining: detailedProvisioningTimeRemaining)
                 .tag(2)
                 .tabItem {
                     Text("Sport plan 1")
@@ -73,6 +76,10 @@ struct ContentView: View {
         }
         .onReceive(provisioningRefreshTimer) { date in
             provisioningTimeRemaining = ProvisioningCountdown.text(at: date)
+            detailedProvisioningTimeRemaining = ProvisioningCountdown.text(
+                at: date,
+                includesMinutes: true
+            )
         }
         .onAppear {
             updateSupportedOrientations(for: selectedTab)
@@ -219,14 +226,19 @@ private enum ProvisioningCountdown {
         return ISO8601DateFormatter().date(from: dateString)
     }()
 
-    static func text(at date: Date = .now) -> String {
+    static func text(at date: Date = .now, includesMinutes: Bool = false) -> String {
         guard let expirationDate else {
-            return "--d:--h"
+            return includesMinutes ? "--:--:--" : "--.--.--"
         }
 
-        let remainingSeconds = max(0, Int(expirationDate.timeIntervalSince(date)))
-        let days = remainingSeconds / 86_400
-        let hours = (remainingSeconds % 86_400) / 3_600
-        return String(format: "%dd:%02dh", days, hours)
+        let displayedSeconds = abs(Int(expirationDate.timeIntervalSince(date)))
+        let days = displayedSeconds / 86_400
+        let hours = (displayedSeconds % 86_400) / 3_600
+        if includesMinutes {
+            let minutes = (displayedSeconds % 3_600) / 60
+            return String(format: "%d:%02d:%02d", days, hours, minutes)
+        }
+        let minutes = (displayedSeconds % 3_600) / 60
+        return String(format: "%d.%02d.%02d", days, hours, minutes)
     }
 }

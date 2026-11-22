@@ -4,6 +4,8 @@ import SwiftUI
 import UIKit
 
 struct SportTrackerView: View {
+    let provisioningTimeRemaining: String
+
     @StateObject private var model = SportTrackerModel()
     @State private var activeExercisePreview: ExercisePreview?
     @State private var areGridNumbersVisible = true
@@ -151,21 +153,18 @@ struct SportTrackerView: View {
 
                                     GeometryReader { buttonGeometry in
                                         let spacing: CGFloat = 4
-                                        let originalButtonWidth = (buttonGeometry.size.width - spacing) / 2
-                                        let minusButtonWidth = originalButtonWidth * 0.7
-                                        let plusButtonWidth =
-                                            buttonGeometry.size.width - spacing - minusButtonWidth
+                                        let buttonWidth = (buttonGeometry.size.width - spacing) / 2
 
                                         HStack(spacing: spacing) {
-                                            counterButton("+") {
+                                            counterButton("+", backgroundOpacity: 0.1728) {
                                                 model.incrementSoundInterval()
                                             }
-                                            .frame(width: plusButtonWidth)
+                                            .frame(width: buttonWidth)
 
                                             counterButton("−") {
                                                 model.decrementSoundInterval()
                                             }
-                                            .frame(width: minusButtonWidth)
+                                            .frame(width: buttonWidth)
                                         }
                                     }
                                     .frame(height: 23.66)
@@ -208,6 +207,23 @@ struct SportTrackerView: View {
                                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     }
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                }
+
+                                if cellNumber == 7 {
+                                    Text(provisioningTimeRemaining)
+                                        .font(.system(size: 21.02, weight: .semibold, design: .monospaced))
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.5)
+                                        .foregroundStyle(Color(red: 1.0, green: 0.65, blue: 0.82))
+                                        .frame(
+                                            maxWidth: .infinity,
+                                            maxHeight: .infinity,
+                                            alignment: .bottom
+                                        )
+                                        .padding(.bottom, 3)
+                                        .accessibilityLabel(
+                                            "App time remaining, \(provisioningTimeRemaining)"
+                                        )
                                 }
 
                                 if cellNumber == 8 {
@@ -401,6 +417,15 @@ struct SportTrackerView: View {
                     )
                 ]
             )
+        case 12:
+            ExercisePreview(
+                images: [
+                    ExercisePreviewImage(
+                        assetName: "down-back-01",
+                        fileName: "down-back-01.jpg"
+                    )
+                ]
+            )
         case 15:
             ExercisePreview(
                 images: [
@@ -443,13 +468,19 @@ struct SportTrackerView: View {
         }
     }
 
-    private func counterButton(_ title: String, action: @escaping () -> Void) -> some View {
+    private func counterButton(
+        _ title: String,
+        backgroundOpacity: Double? = nil,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             Text(title)
                 .font(.system(size: 13, weight: .bold))
                 .frame(maxWidth: .infinity)
                 .frame(height: 23.66)
-                .background(Color.black.opacity(title == "−" ? 0.1728 : 0.3))
+                .background(
+                    Color.black.opacity(backgroundOpacity ?? (title == "−" ? 0.1728 : 0.3))
+                )
                 .clipShape(RoundedRectangle(cornerRadius: 4))
         }
         .buttonStyle(.plain)
