@@ -70,7 +70,7 @@ struct ContentView: View {
                 AppTabBar(
                     selection: $selectedTab,
                     showPhotoExport: $showPhotoExport,
-                    provisioningTimeRemaining: provisioningTimeRemaining
+                    cellSevenTime: detailedProvisioningTimeRemaining
                 )
             }
         }
@@ -103,76 +103,84 @@ struct ContentView: View {
 }
 
 private struct AppTabBar: View {
-    private static let buttonCount: CGFloat = 7
+    private static let rowHeight: CGFloat = 32
 
     @Binding var selection: Int
     @Binding var showPhotoExport: Bool
-    let provisioningTimeRemaining: String
+    let cellSevenTime: String
 
     var body: some View {
-        GeometryReader { geometry in
-            let buttonWidth = geometry.size.width / Self.buttonCount
-
+        VStack(spacing: 0) {
             HStack(spacing: 0) {
                 stopwatchButton
-                    .frame(width: buttonWidth)
+                    .frame(maxWidth: .infinity)
                     .tabButtonOutline()
-                tabButton(title: "Eye Break", tag: 1)
-                    .frame(width: buttonWidth)
+                tabButton(title: "Eye\nBreak", tag: 1)
+                    .frame(maxWidth: .infinity)
                     .tabButtonOutline()
-                tabButton(title: "Sport plan 1", tag: 2)
-                    .frame(width: buttonWidth)
+                tabButton(title: "Sport plan\n1", tag: 2)
+                    .frame(maxWidth: .infinity)
                     .tabButtonOutline()
                 tabButton(title: "Insta\n360", tag: 3)
-                    .frame(width: buttonWidth)
+                    .frame(maxWidth: .infinity)
                     .tabButtonOutline()
+            }
+
+            HStack(spacing: 0) {
                 tabButton(title: "Recorder", tag: 4)
-                    .frame(width: buttonWidth)
+                    .frame(maxWidth: .infinity)
                     .tabButtonOutline()
-                tabButton(title: "Video player", tag: 5)
-                    .frame(width: buttonWidth)
+                tabButton(title: "Video\nplayer", tag: 5)
+                    .frame(maxWidth: .infinity)
                     .tabButtonOutline()
                 Button { showPhotoExport = true } label: {
-                    Text("Photos to mac")
+                    Text("Photos to\nmac")
                         .font(.caption)
                         .multilineTextAlignment(.center)
                         .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, minHeight: 54)
+                        .frame(maxWidth: .infinity, minHeight: Self.rowHeight)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .frame(width: buttonWidth)
+                .frame(maxWidth: .infinity)
                 .tabButtonOutline()
-            }
-            .padding(.top, 7)
-            .padding(.bottom, 4)
-            .background(.bar)
-            .overlay(alignment: .top) {
-                Divider()
+                Button {} label: {
+                    Text(cellSevenTime)
+                        .font(.caption.monospacedDigit())
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .foregroundStyle(Color(red: 1.0, green: 0.65, blue: 0.82))
+                        .frame(maxWidth: .infinity, minHeight: Self.rowHeight)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
+                .tabButtonOutline()
+                .accessibilityLabel("App time remaining, \(cellSevenTime)")
             }
         }
-        .frame(height: 65)
+        .padding(.vertical, 2)
+        .padding(.horizontal, 70)
         .background(.bar)
+        .overlay(alignment: .top) {
+            Divider()
+        }
     }
 
     private var stopwatchButton: some View {
         Button {
             selection = 0
         } label: {
-            VStack(spacing: 2) {
-                Text("Stopwatch")
-                Text(provisioningTimeRemaining)
-                    .monospacedDigit()
-                    .foregroundStyle(Color(red: 0.45, green: 0.9, blue: 1.0))
-            }
+            Text("Stopwatch")
             .font(.caption)
             .multilineTextAlignment(.center)
             .fontWeight(selection == 0 ? .semibold : .regular)
             .foregroundStyle(selection == 0 ? Color.accentColor : .secondary)
-            .frame(maxWidth: .infinity, minHeight: 54)
+            .frame(maxWidth: .infinity, minHeight: Self.rowHeight)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Stopwatch, \(provisioningTimeRemaining) remaining")
+        .accessibilityLabel("Stopwatch")
     }
 
     private func tabButton(title: String, tag: Int) -> some View {
@@ -180,11 +188,11 @@ private struct AppTabBar: View {
             selection = tag
         } label: {
             Text(title)
-                .lineLimit(3)
+                .lineLimit(2)
                 .multilineTextAlignment(.center)
                 .font(.caption)
                 .foregroundStyle(selection == tag ? Color.accentColor : .secondary)
-                .frame(maxWidth: .infinity, minHeight: 54)
+                .frame(maxWidth: .infinity, minHeight: Self.rowHeight)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
