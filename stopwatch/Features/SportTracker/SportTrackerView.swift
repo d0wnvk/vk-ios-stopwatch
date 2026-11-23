@@ -145,12 +145,12 @@ struct SportTrackerView: View {
                                         areGridNumbersVisible.toggle()
                                     } label: {
                                         Text("show numbrs")
-                                            .font(.headline)
+                                            .font(.system(size: 13, weight: .semibold))
                                             .lineLimit(2)
                                             .minimumScaleFactor(0.65)
                                             .multilineTextAlignment(.center)
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 4)
+                                            .padding(.horizontal, 2)
+                                            .padding(.vertical, 1)
                                             .overlay {
                                                 RoundedRectangle(cornerRadius: 4)
                                                     .stroke(Color.red, lineWidth: 2)
