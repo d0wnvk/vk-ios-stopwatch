@@ -190,6 +190,15 @@ final class SportTrackerModel: ObservableObject {
         Self.datedCellSequence.first(where: { datedLabelDate(in: $0) == nil }) == cellNumber
     }
 
+    func isCurrentDatedLabel(in cellNumber: Int) -> Bool {
+        let firstUnmarkedIndex = Self.datedCellSequence.firstIndex(where: {
+            datedLabelDate(in: $0) == nil
+        }) ?? Self.datedCellSequence.endIndex
+
+        guard firstUnmarkedIndex > Self.datedCellSequence.startIndex else { return false }
+        return Self.datedCellSequence[firstUnmarkedIndex - 1] == cellNumber
+    }
+
     func playSoundIfNeeded(at now: Date) {
         guard let timerStartDate,
               !didPlayOneMinuteSound,

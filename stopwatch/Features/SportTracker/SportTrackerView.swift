@@ -6,9 +6,12 @@ import UIKit
 struct SportTrackerView: View {
     let provisioningTimeRemaining: String
 
+    private static let selectedHeaderCellStateKey = "sport-tracker-selected-header-cell"
+
     @StateObject private var model = SportTrackerModel()
     @State private var activeExercisePreview: ExercisePreview?
     @State private var areGridNumbersVisible = true
+    @State private var selectedHeaderCell: Int?
 
     private static let fiveLDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -20,6 +23,18 @@ struct SportTrackerView: View {
 
     private let backgroundColor = Color(red: 0.27, green: 0.27, blue: 0.25)
     private let tappableCellNumbers = SportTrackerModel.tappableCellNumbers
+
+    init(provisioningTimeRemaining: String) {
+        self.provisioningTimeRemaining = provisioningTimeRemaining
+
+        let savedSelection = PersistentAppState.load(
+            Int.self,
+            forKey: Self.selectedHeaderCellStateKey
+        )
+        _selectedHeaderCell = State(
+            initialValue: savedSelection.flatMap { 2...4 ~= $0 ? $0 : nil }
+        )
+    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -82,8 +97,10 @@ struct SportTrackerView: View {
                                     .disabled(!model.canMarkDatedLabel(in: cellNumber))
                                 }
 
-                                cellContent(for: cellNumber)
-                                    .allowsHitTesting(false)
+                                if !(2...4 ~= cellNumber) {
+                                    cellContent(for: cellNumber)
+                                        .allowsHitTesting(false)
+                                }
 
                                 if exercisePreview(for: cellNumber) != nil {
                                     Image(systemName: "eye")
@@ -146,6 +163,64 @@ struct SportTrackerView: View {
                                     .accessibilityHint("Toggles cell and row numbers")
                                 }
 
+                                if 2...4 ~= cellNumber {
+                                    GeometryReader { cellGeometry in
+                                        let buttonInset: CGFloat = 4
+                                        let buttonHeight = min(
+                                            cellGeometry.size.width,
+                                            cellGeometry.size.height
+                                        ) / 2 - buttonInset
+
+                                        Button {
+                                            if selectedHeaderCell == cellNumber {
+                                                selectedHeaderCell = nil
+                                            } else if selectedHeaderCell == nil {
+                                                selectedHeaderCell = cellNumber
+                                            }
+                                        } label: {
+                                            ZStack {
+                                                Color.clear
+
+                                                Text(cellLabel(for: cellNumber))
+                                                    .font(.title2.monospacedDigit())
+                                                    .foregroundStyle(.white)
+                                            }
+                                                .frame(
+                                                    width: cellGeometry.size.width - buttonInset * 2,
+                                                    height: buttonHeight
+                                                )
+                                                .contentShape(Rectangle())
+                                                .overlay {
+                                                    if selectedHeaderCell == cellNumber {
+                                                        RoundedRectangle(cornerRadius: 4)
+                                                            .stroke(Color.green, lineWidth: 2)
+                                                    }
+                                                }
+                                        }
+                                        .buttonStyle(.plain)
+                                        .disabled(
+                                            selectedHeaderCell != nil
+                                                && selectedHeaderCell != cellNumber
+                                        )
+                                        .accessibilityLabel(cellLabel(for: cellNumber))
+                                        .accessibilityValue(
+                                            selectedHeaderCell == cellNumber
+                                                ? "Selected"
+                                                : "Not selected"
+                                        )
+                                        .accessibilityHint(
+                                            selectedHeaderCell == nil
+                                                || selectedHeaderCell == cellNumber
+                                                ? "Toggles this option"
+                                                : "Turn off the selected option first"
+                                        )
+                                        .position(
+                                            x: cellGeometry.size.width / 2,
+                                            y: buttonInset + buttonHeight / 2
+                                        )
+                                    }
+                                }
+
                                 if cellNumber == 5 {
                                     Text(String(model.soundIntervalMinutes))
                                         .font(.system(size: 24, weight: .bold, design: .monospaced))
@@ -176,10 +251,9 @@ struct SportTrackerView: View {
                                     VStack(spacing: 0) {
                                         Button(action: model.resetAll) {
                                             Text("Reset")
-                                                .font(.headline.monospacedDigit())
+                                                .font(.system(size: 15, weight: .semibold))
                                                 .lineLimit(1)
-                                                .minimumScaleFactor(0.65)
-                                                .padding(.horizontal, 8)
+                                                .padding(.horizontal, 4)
                                                 .padding(.vertical, 4)
                                                 .overlay {
                                                     RoundedRectangle(cornerRadius: 4)
@@ -230,10 +304,9 @@ struct SportTrackerView: View {
                                     VStack(spacing: 0) {
                                         Button(action: model.resetDatedLabels) {
                                             Text("Reset dates")
-                                                .font(.headline)
+                                                .font(.system(size: 15, weight: .semibold))
                                                 .lineLimit(1)
-                                                .minimumScaleFactor(0.65)
-                                                .padding(.horizontal, 8)
+                                                .padding(.horizontal, 4)
                                                 .padding(.vertical, 4)
                                                 .overlay {
                                                     RoundedRectangle(cornerRadius: 4)
@@ -391,6 +464,12 @@ struct SportTrackerView: View {
         .onReceive(soundTimer) { now in
             model.playSoundIfNeeded(at: now)
         }
+        .onChange(of: selectedHeaderCell) { _, newValue in
+            PersistentAppState.save(
+                newValue ?? 0,
+                forKey: Self.selectedHeaderCellStateKey
+            )
+        }
         .onDisappear {
             model.stopAudio()
         }
@@ -508,17 +587,34 @@ struct SportTrackerView: View {
 
     private func rowHeightMultiplier(for row: Int) -> CGFloat {
         let otherRowsScale: CGFloat = 0.9666
+        let originalTotalHeightMultiplier: CGFloat = 7.65375
+        let originalFirstRowHeight = 0.27 * otherRowsScale
+        let doubledFirstRowHeight = originalFirstRowHeight * 2
+        let remainingRowsScale =
+            (originalTotalHeightMultiplier - doubledFirstRowHeight)
+            / (originalTotalHeightMultiplier - originalFirstRowHeight)
+        let originalSpecialRowsHeight = 2 * 0.27 * 1.44
+        let enlargedSpecialRowHeight = 0.27 * 1.44 * remainingRowsScale * 1.2
+        let otherRowsOriginalHeight =
+            originalTotalHeightMultiplier
+            - originalFirstRowHeight
+            - originalSpecialRowsHeight
+        let adjustedOtherRowsScale =
+            (originalTotalHeightMultiplier
+                - doubledFirstRowHeight
+                - enlargedSpecialRowHeight * 2)
+            / otherRowsOriginalHeight
 
         if row == 6 || row == 7 {
-            return 0.27 * 1.44
+            return enlargedSpecialRowHeight
         }
         if row == 1 {
-            return 0.84375 * otherRowsScale
+            return 0.84375 * otherRowsScale * adjustedOtherRowsScale
         }
         if row == 0 {
-            return 0.27 * otherRowsScale
+            return doubledFirstRowHeight
         }
-        return otherRowsScale
+        return otherRowsScale * adjustedOtherRowsScale
     }
 
     private var firstColumnWidth: CGFloat {
@@ -617,7 +713,10 @@ struct SportTrackerView: View {
         }
 
         if let date {
-            return Text(label + " " + Self.fiveLDateFormatter.string(from: date))
+            let text = Text(label + " " + Self.fiveLDateFormatter.string(from: date))
+            return model.isCurrentDatedLabel(in: cellNumber)
+                ? text.foregroundColor(.yellow)
+                : text
         }
 
         guard model.canMarkDatedLabel(in: cellNumber) else {
@@ -625,9 +724,8 @@ struct SportTrackerView: View {
         }
 
         let currentDate = Self.fiveLDateFormatter.string(from: Date())
-        return Text(label + " ")
-            + Text(currentDate)
-                .foregroundColor(Color(red: 0.55, green: 1.0, blue: 0.55))
+        return Text(label + " " + currentDate)
+            .foregroundColor(Color(red: 0.55, green: 1.0, blue: 0.55))
     }
 
     private func labelLines(for number: Int, label: String) -> [String] {
