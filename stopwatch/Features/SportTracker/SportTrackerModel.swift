@@ -6,7 +6,7 @@ import UserNotifications
 @MainActor
 final class SportTrackerModel: ObservableObject {
     private static let datedCellSequence = [25, 29, 26, 30, 27, 31, 28, 32]
-    private static let timerNotificationIdentifier = "sport-tracker-timer-threshold"
+    static let timerNotificationIdentifier = "sport-tracker-timer-threshold"
 
     private struct SavedState: Codable {
         var layoutVersion: Int?
@@ -49,7 +49,6 @@ final class SportTrackerModel: ObservableObject {
 
     private var lastCellTapDates: [Int: Date] = [:]
     private var didPlayOneMinuteSound = false
-    private var audioPlayer: AVAudioPlayer?
     private var notificationSchedulingTask: Task<Void, Never>?
     private var isNotificationSoundScheduled = false
 
@@ -73,7 +72,7 @@ final class SportTrackerModel: ObservableObject {
         }
 
         rightNumbers = migratedNumbers
-        soundIntervalMinutes = max(2, saved.soundIntervalMinutes)
+        soundIntervalMinutes = max(1, saved.soundIntervalMinutes)
         timerStartDate = saved.timerStartDate
         independentTimerStartDate = saved.independentTimerStartDate
         fiveLDate = saved.fiveLDate
@@ -126,7 +125,7 @@ final class SportTrackerModel: ObservableObject {
     }
 
     func decrementSoundInterval() {
-        guard soundIntervalMinutes > 2 else { return }
+        guard soundIntervalMinutes > 1 else { return }
         soundIntervalMinutes -= 1
         didPlayOneMinuteSound = false
         scheduleTimerNotification()
@@ -213,17 +212,14 @@ final class SportTrackerModel: ObservableObject {
         ) else { return }
 
         do {
-            let player = try AVAudioPlayer(contentsOf: soundURL)
-            player.prepareToPlay()
-            audioPlayer = player
-            player.play()
+            try SportTrackerSoundPlayer.shared.play(soundURL)
         } catch {
-            audioPlayer = nil
+            SportTrackerSoundPlayer.shared.stop()
         }
     }
 
     func stopAudio() {
-        audioPlayer?.stop()
+        SportTrackerSoundPlayer.shared.stop()
     }
 
     private func scheduleTimerNotification(at now: Date = .now) {
@@ -352,5 +348,31 @@ final class SportTrackerModel: ObservableObject {
         case 32: sixHDate32
         default: nil
         }
+    }
+}
+
+@MainActor
+final class SportTrackerSoundPlayer {
+    static let shared = SportTrackerSoundPlayer()
+
+    private var audioPlayer: AVAudioPlayer?
+
+    private init() {}
+
+    func play(_ soundURL: URL) throws {
+        let session = AVAudioSession.sharedInstance()
+        try session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+        try session.setActive(true)
+
+        let player = try AVAudioPlayer(contentsOf: soundURL)
+        player.volume = 1
+        player.prepareToPlay()
+        audioPlayer = player
+        player.play()
+    }
+
+    func stop() {
+        audioPlayer?.stop()
+        audioPlayer = nil
     }
 }

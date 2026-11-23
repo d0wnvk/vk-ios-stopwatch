@@ -1,3 +1,4 @@
+import AVFoundation
 import UIKit
 import UserNotifications
 
@@ -14,7 +15,16 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
-        [.sound]
+        if notification.request.identifier == SportTrackerModel.timerNotificationIdentifier,
+           let soundURL = Bundle.main.url(
+               forResource: "notification-sound",
+               withExtension: "mp3"
+           ) {
+            try? SportTrackerSoundPlayer.shared.play(soundURL)
+            return []
+        }
+
+        return [.sound]
     }
 
     func application(
