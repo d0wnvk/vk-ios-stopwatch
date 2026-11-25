@@ -1,5 +1,7 @@
 import Combine
+import AVFAudio
 import Foundation
+import MediaPlayer
 import SwiftUI
 import UIKit
 
@@ -9,6 +11,7 @@ struct SportTrackerView: View {
     private static let selectedHeaderCellStateKey = "sport-tracker-selected-header-cell"
 
     @StateObject private var model = SportTrackerModel()
+    @StateObject private var volumeController = SystemVolumeController()
     @State private var activeExercisePreview: ExercisePreview?
     @State private var areGridNumbersVisible = true
     @State private var selectedHeaderCell: Int?
@@ -20,6 +23,7 @@ struct SportTrackerView: View {
     }()
 
     private let soundTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    private let volumeTimer = Timer.publish(every: 0.2, on: .main, in: .common).autoconnect()
 
     private let backgroundColor = Color(red: 0.27, green: 0.27, blue: 0.25)
     private let tappableCellNumbers = SportTrackerModel.tappableCellNumbers
@@ -281,23 +285,60 @@ struct SportTrackerView: View {
                                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     }
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .background {
+                                        SystemVolumeView(controller: volumeController)
+                                            .frame(width: 1, height: 1)
+                                            .opacity(0.001)
+                                    }
                                 }
 
                                 if cellNumber == 7 {
-                                    Text(provisioningTimeRemaining)
-                                        .font(.system(size: 21.02, weight: .semibold, design: .monospaced))
-                                        .lineLimit(1)
-                                        .minimumScaleFactor(0.5)
-                                        .foregroundStyle(Color(red: 1.0, green: 0.65, blue: 0.82))
-                                        .frame(
-                                            maxWidth: .infinity,
-                                            maxHeight: .infinity,
-                                            alignment: .bottom
+                                    VStack(spacing: 0) {
+                                        Button(action: volumeController.toggleMaximumVolume) {
+                                            Text("Volume \(volumeController.volumePercentage)%")
+                                                .font(.system(size: 15, weight: .semibold))
+                                                .lineLimit(1)
+                                                .minimumScaleFactor(0.7)
+                                                .padding(.horizontal, 4)
+                                                .padding(.vertical, 4)
+                                                .overlay {
+                                                    RoundedRectangle(cornerRadius: 4)
+                                                        .stroke(
+                                                            volumeController.isMaximumVolumeEnabled
+                                                                ? Color.green
+                                                                : Color.red,
+                                                            lineWidth: 2
+                                                        )
+                                                }
+                                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                                .contentShape(Rectangle())
+                                        }
+                                        .buttonStyle(.plain)
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                        .accessibilityLabel("iPhone sound volume")
+                                        .accessibilityValue(
+                                            "\(volumeController.volumePercentage) percent, maximum volume "
+                                                + (volumeController.isMaximumVolumeEnabled ? "on" : "off")
                                         )
-                                        .padding(.bottom, 3)
-                                        .accessibilityLabel(
-                                            "App time remaining, \(provisioningTimeRemaining)"
+                                        .accessibilityHint(
+                                            volumeController.isMaximumVolumeEnabled
+                                                ? "Restores the previous volume"
+                                                : "Sets the volume to 100 percent"
                                         )
+
+                                        Divider()
+
+                                        Text(provisioningTimeRemaining)
+                                            .font(.system(size: 21.02, weight: .semibold, design: .monospaced))
+                                            .lineLimit(1)
+                                            .minimumScaleFactor(0.5)
+                                            .foregroundStyle(Color(red: 1.0, green: 0.65, blue: 0.82))
+                                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                            .accessibilityLabel(
+                                                "App time remaining, \(provisioningTimeRemaining)"
+                                            )
+                                    }
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                                 }
 
                                 if cellNumber == 8 {
@@ -463,6 +504,9 @@ struct SportTrackerView: View {
         }
         .onReceive(soundTimer) { now in
             model.playSoundIfNeeded(at: now)
+        }
+        .onReceive(volumeTimer) { _ in
+            volumeController.refreshCurrentVolume()
         }
         .onChange(of: selectedHeaderCell) { _, newValue in
             PersistentAppState.save(
@@ -841,6 +885,96 @@ private struct ExercisePressArea: UIViewRepresentable {
                 break
             }
         }
+    }
+}
+
+@MainActor
+private final class SystemVolumeController: ObservableObject {
+    @Published private(set) var currentVolume: Float
+    @Published private(set) var isMaximumVolumeEnabled = false
+
+    private var previousVolume: Float?
+    private weak var volumeSlider: UISlider?
+    private var pendingVolume: Float?
+    private var volumeObservation: NSKeyValueObservation?
+
+    init() {
+        let audioSession = AVAudioSession.sharedInstance()
+        currentVolume = audioSession.outputVolume
+        volumeObservation = audioSession.observe(
+            \.outputVolume,
+            options: [.initial, .new]
+        ) { [weak self] _, change in
+            guard let volume = change.newValue else { return }
+            Task { @MainActor [weak self] in
+                self?.currentVolume = volume
+            }
+        }
+    }
+
+    var volumePercentage: Int {
+        Int((currentVolume * 100).rounded())
+    }
+
+    func refreshCurrentVolume() {
+        let systemVolume = AVAudioSession.sharedInstance().outputVolume
+        if abs(currentVolume - systemVolume) > 0.001 {
+            currentVolume = systemVolume
+        }
+    }
+
+    func attach(volumeView: MPVolumeView) {
+        guard let slider = volumeView.subviews.compactMap({ $0 as? UISlider }).first else {
+            DispatchQueue.main.async { [weak self, weak volumeView] in
+                guard let self, let volumeView else { return }
+                self.attach(volumeView: volumeView)
+            }
+            return
+        }
+
+        volumeSlider = slider
+        if let pendingVolume {
+            self.pendingVolume = nil
+            setVolume(pendingVolume)
+        }
+    }
+
+    func toggleMaximumVolume() {
+        if isMaximumVolumeEnabled {
+            setVolume(previousVolume ?? currentVolume)
+            previousVolume = nil
+            isMaximumVolumeEnabled = false
+        } else {
+            previousVolume = currentVolume
+            isMaximumVolumeEnabled = true
+            setVolume(1)
+        }
+    }
+
+    private func setVolume(_ volume: Float) {
+        let clampedVolume = min(max(volume, 0), 1)
+        currentVolume = clampedVolume
+        guard let volumeSlider else {
+            pendingVolume = clampedVolume
+            return
+        }
+
+        volumeSlider.setValue(clampedVolume, animated: false)
+        volumeSlider.sendActions(for: .valueChanged)
+    }
+}
+
+private struct SystemVolumeView: UIViewRepresentable {
+    let controller: SystemVolumeController
+
+    func makeUIView(context: Context) -> MPVolumeView {
+        let volumeView = MPVolumeView(frame: .zero)
+        controller.attach(volumeView: volumeView)
+        return volumeView
+    }
+
+    func updateUIView(_ volumeView: MPVolumeView, context: Context) {
+        controller.attach(volumeView: volumeView)
     }
 }
 
