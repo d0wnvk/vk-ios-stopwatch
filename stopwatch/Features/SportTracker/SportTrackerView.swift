@@ -54,35 +54,16 @@ struct SportTrackerView: View {
 
                             ZStack {
                                 if tappableCellNumbers.contains(cellNumber) {
-                                    if let preview = exercisePreview(for: cellNumber) {
-                                        ExercisePressArea(
-                                            onTap: {
-                                                model.incrementCounter(for: cellNumber)
-                                            },
-                                            onHoldChanged: { isHolding in
-                                                activeExercisePreview = isHolding ? preview : nil
-                                            }
-                                        )
-                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                    } else {
-                                        Button {
-                                            model.incrementCounter(for: cellNumber)
-                                        } label: {
-                                            Color.clear
-                                                // Brief Color Flash: temporarily adds a light-cyan tint
-                                                // after an accepted tap.
-                                                .background(
-                                                    model.flashingCells[cellNumber] != nil
-                                                        ? Color(red: 0.45, green: 0.9, blue: 1.0).opacity(0.3)
-                                                        : Color.clear
-                                                )
-                                                .contentShape(Rectangle())
+                                    ExerciseCellControl(
+                                        preview: exercisePreview(for: cellNumber),
+                                        flashTrigger: model.flashingCells[cellNumber],
+                                        onTap: { model.incrementCounter(for: cellNumber) },
+                                        onHoldChanged: { preview, isHolding in
+                                            activeExercisePreview = isHolding ? preview : nil
                                         }
-                                        .buttonStyle(.plain)
+                                    ) {
+                                        cellContent(for: cellNumber)
                                     }
-
-                                    CellColorFillEffect(trigger: model.flashingCells[cellNumber])
-                                        .allowsHitTesting(false)
                                 }
 
                                 if SportTrackerCellCatalog.datedCellNumbers.contains(cellNumber) {
@@ -96,32 +77,9 @@ struct SportTrackerView: View {
                                     .disabled(!model.canMarkDatedLabel(in: cellNumber))
                                 }
 
-                                if !(2...4 ~= cellNumber) {
+                                if !(2...4 ~= cellNumber)
+                                    && !tappableCellNumbers.contains(cellNumber) {
                                     cellContent(for: cellNumber)
-                                        .allowsHitTesting(false)
-                                }
-
-                                if exercisePreview(for: cellNumber) != nil {
-                                    Image(systemName: "eye")
-                                        .font(.system(size: 13, weight: .semibold))
-                                        .foregroundStyle(.white)
-                                        .frame(
-                                            maxWidth: .infinity,
-                                            maxHeight: .infinity,
-                                            alignment: .bottomLeading
-                                        )
-                                        .padding(6)
-                                        .allowsHitTesting(false)
-                                }
-
-                                if tappableCellNumbers.contains(cellNumber) {
-                                    CellRippleEffect(trigger: model.flashingCells[cellNumber])
-                                        .allowsHitTesting(false)
-
-                                    CellParticleBurstEffect(trigger: model.flashingCells[cellNumber])
-                                        .allowsHitTesting(false)
-
-                                    CellCooldownRingEffect(trigger: model.flashingCells[cellNumber])
                                         .allowsHitTesting(false)
                                 }
 
@@ -140,231 +98,50 @@ struct SportTrackerView: View {
                                 }
 
                                 if cellNumber == 1 {
-                                    Button {
-                                        areGridNumbersVisible.toggle()
-                                    } label: {
-                                        Text("show numbrs")
-                                            .font(.system(size: 13, weight: .semibold))
-                                            .lineLimit(2)
-                                            .minimumScaleFactor(0.65)
-                                            .multilineTextAlignment(.center)
-                                            .padding(.horizontal, 2)
-                                            .padding(.vertical, 1)
-                                            .overlay {
-                                                RoundedRectangle(cornerRadius: 4)
-                                                    .stroke(Color.red, lineWidth: 2)
-                                            }
-                                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                            .contentShape(Rectangle())
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityValue(areGridNumbersVisible ? "Visible" : "Hidden")
-                                    .accessibilityHint("Toggles cell and row numbers")
+                                    GridNumbersControl(isVisible: $areGridNumbersVisible)
                                 }
 
                                 if 2...4 ~= cellNumber {
-                                    GeometryReader { cellGeometry in
-                                        let buttonInset: CGFloat = 4
-                                        let buttonHeight = min(
-                                            cellGeometry.size.width,
-                                            cellGeometry.size.height
-                                        ) / 2 - buttonInset
-
-                                        Button {
-                                            if selectedHeaderCell == cellNumber {
-                                                selectedHeaderCell = nil
-                                            } else if selectedHeaderCell == nil {
-                                                selectedHeaderCell = cellNumber
-                                            }
-                                        } label: {
-                                            ZStack {
-                                                Color.clear
-
-                                                Text(cellLabel(for: cellNumber))
-                                                    .font(.title2.monospacedDigit())
-                                                    .foregroundStyle(.white)
-                                            }
-                                                .frame(
-                                                    width: cellGeometry.size.width - buttonInset * 2,
-                                                    height: buttonHeight
-                                                )
-                                                .contentShape(Rectangle())
-                                                .overlay {
-                                                    if selectedHeaderCell == cellNumber {
-                                                        RoundedRectangle(cornerRadius: 4)
-                                                            .stroke(Color.green, lineWidth: 2)
-                                                    }
-                                                }
-                                        }
-                                        .buttonStyle(.plain)
-                                        .disabled(
-                                            selectedHeaderCell != nil
-                                                && selectedHeaderCell != cellNumber
-                                        )
-                                        .accessibilityLabel(cellLabel(for: cellNumber))
-                                        .accessibilityValue(
-                                            selectedHeaderCell == cellNumber
-                                                ? "Selected"
-                                                : "Not selected"
-                                        )
-                                        .accessibilityHint(
-                                            selectedHeaderCell == nil
-                                                || selectedHeaderCell == cellNumber
-                                                ? "Toggles this option"
-                                                : "Turn off the selected option first"
-                                        )
-                                        .position(
-                                            x: cellGeometry.size.width / 2,
-                                            y: buttonInset + buttonHeight / 2
-                                        )
-                                    }
+                                    HeaderSelectionControl(
+                                        cellNumber: cellNumber,
+                                        label: cellLabel(for: cellNumber),
+                                        selection: $selectedHeaderCell
+                                    )
                                 }
 
                                 if cellNumber == 5 {
-                                    Text(String(model.soundIntervalMinutes))
-                                        .font(.system(size: 24, weight: .bold, design: .monospaced))
-                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                                    GeometryReader { buttonGeometry in
-                                        let spacing: CGFloat = 4
-                                        let buttonWidth = (buttonGeometry.size.width - spacing) / 2
-
-                                        HStack(spacing: spacing) {
-                                            counterButton("+", backgroundOpacity: 0.1728) {
-                                                model.incrementSoundInterval()
-                                            }
-                                            .frame(width: buttonWidth)
-
-                                            counterButton("−") {
-                                                model.decrementSoundInterval()
-                                            }
-                                            .frame(width: buttonWidth)
-                                        }
-                                    }
-                                    .frame(height: 23.66)
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                                    .padding(.bottom, 3)
+                                    SoundIntervalControl(
+                                        minutes: model.soundIntervalMinutes,
+                                        onIncrement: model.incrementSoundInterval,
+                                        onDecrement: model.decrementSoundInterval
+                                    )
                                 }
 
                                 if cellNumber == 6 {
-                                    VStack(spacing: 0) {
-                                        Button(action: model.resetAll) {
-                                            Text("Reset")
-                                                .font(.system(size: 15, weight: .semibold))
-                                                .lineLimit(1)
-                                                .padding(.horizontal, 4)
-                                                .padding(.vertical, 4)
-                                                .overlay {
-                                                    RoundedRectangle(cornerRadius: 4)
-                                                        .stroke(
-                                                            Color.red,
-                                                            lineWidth: 2
-                                                        )
-                                                }
-                                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                                .contentShape(Rectangle())
-                                        }
-                                        .buttonStyle(.plain)
-                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                                        Divider()
-
-                                        TimelineView(.periodic(from: .now, by: 1)) { context in
-                                            Text(timerText(at: context.date, since: model.timerStartDate))
-                                                .font(.system(size: 32.34, weight: .bold, design: .monospaced))
-                                                .minimumScaleFactor(0.5)
-                                                .lineLimit(1)
-                                                .foregroundStyle(.yellow)
-                                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                        }
-                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                    }
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    ResetTimerControl(
+                                        title: "Reset",
+                                        startDate: model.timerStartDate,
+                                        timerColor: .yellow,
+                                        onReset: model.resetAll
+                                    )
                                 }
 
                                 if cellNumber == 7 {
-                                    VStack(spacing: 0) {
-                                        Button(action: volumeController.toggleMaximumVolume) {
-                                            Text("Volume \(volumeController.volumePercentage)%")
-                                                .font(.system(size: 15, weight: .semibold))
-                                                .lineLimit(1)
-                                                .minimumScaleFactor(0.7)
-                                                .padding(.horizontal, 4)
-                                                .padding(.vertical, 4)
-                                                .overlay {
-                                                    RoundedRectangle(cornerRadius: 4)
-                                                        .stroke(
-                                                            volumeController.isMaximumVolumeEnabled
-                                                                ? Color.green
-                                                                : Color.red,
-                                                            lineWidth: 2
-                                                        )
-                                                }
-                                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                                .contentShape(Rectangle())
-                                        }
-                                        .buttonStyle(.plain)
-                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                        .accessibilityLabel("iPhone sound volume")
-                                        .accessibilityValue(
-                                            "\(volumeController.volumePercentage) percent, maximum volume "
-                                                + (volumeController.isMaximumVolumeEnabled ? "on" : "off")
-                                        )
-                                        .accessibilityHint(
-                                            volumeController.isMaximumVolumeEnabled
-                                                ? "Restores the previous volume"
-                                                : "Sets the volume to 100 percent"
-                                        )
-
-                                        Divider()
-
-                                        Text(provisioningTimeRemaining)
-                                            .font(.system(size: 21.02, weight: .semibold, design: .monospaced))
-                                            .lineLimit(1)
-                                            .minimumScaleFactor(0.5)
-                                            .foregroundStyle(Color(red: 1.0, green: 0.65, blue: 0.82))
-                                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                            .accessibilityLabel(
-                                                "App time remaining, \(provisioningTimeRemaining)"
-                                            )
-                                    }
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    VolumeProvisioningControl(
+                                        percentage: volumeController.volumePercentage,
+                                        isMaximumEnabled: volumeController.isMaximumVolumeEnabled,
+                                        provisioningTimeRemaining: provisioningTimeRemaining,
+                                        onToggle: volumeController.toggleMaximumVolume
+                                    )
                                 }
 
                                 if cellNumber == 8 {
-                                    VStack(spacing: 0) {
-                                        Button(action: model.resetDatedLabels) {
-                                            Text("Reset dates")
-                                                .font(.system(size: 15, weight: .semibold))
-                                                .lineLimit(1)
-                                                .padding(.horizontal, 4)
-                                                .padding(.vertical, 4)
-                                                .overlay {
-                                                    RoundedRectangle(cornerRadius: 4)
-                                                        .stroke(
-                                                            Color.red,
-                                                            lineWidth: 2
-                                                        )
-                                                }
-                                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                                .contentShape(Rectangle())
-                                        }
-                                        .buttonStyle(.plain)
-                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                                        Divider()
-
-                                        TimelineView(.periodic(from: .now, by: 1)) { context in
-                                            Text(timerText(at: context.date, since: model.independentTimerStartDate))
-                                                .font(.system(size: 32.34, weight: .bold, design: .monospaced))
-                                                .minimumScaleFactor(0.5)
-                                                .lineLimit(1)
-                                                .foregroundStyle(Color(red: 0.45, green: 0.9, blue: 1.0))
-                                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                        }
-                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                    }
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    ResetTimerControl(
+                                        title: "Reset dates",
+                                        startDate: model.independentTimerStartDate,
+                                        timerColor: Color(red: 0.45, green: 0.9, blue: 1.0),
+                                        onReset: model.resetDatedLabels
+                                    )
                                 }
 
                                 if row != 0 && row != 1 && row != 6 && row != 7 {
@@ -407,7 +184,7 @@ struct SportTrackerView: View {
 
                                             HStack(spacing: spacing) {
                                                 if !tappableCellNumbers.contains(cellNumber) {
-                                                    counterButton("+") {
+                                                    SportCounterButton(title: "+") {
                                                         model.incrementCounter(for: cellNumber)
                                                     }
                                                     .frame(width: displayedPlusButtonWidth)
@@ -417,7 +194,7 @@ struct SportTrackerView: View {
                                                         .frame(height: 23.66)
                                                 }
 
-                                                counterButton("−") {
+                                                SportCounterButton(title: "−") {
                                                     model.decrementCounter(for: cellNumber)
                                                 }
                                                 .frame(width: minusButtonWidth)
@@ -511,44 +288,6 @@ struct SportTrackerView: View {
 
     private func exercisePreview(for cellNumber: Int) -> ExercisePreview? {
         SportTrackerCellCatalog.definition(for: cellNumber)?.exercisePreview
-    }
-
-    private func counterButton(
-        _ title: String,
-        backgroundOpacity: Double? = nil,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 13, weight: .bold))
-                .frame(maxWidth: .infinity)
-                .frame(height: 23.66)
-                .background(
-                    Color.black.opacity(backgroundOpacity ?? (title == "−" ? 0.1728 : 0.3))
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 4))
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func timerText(
-        at date: Date,
-        since startDate: Date?,
-        includesHours: Bool = false
-    ) -> String {
-        guard let startDate else {
-            return includesHours ? "00:00:00" : "00:00"
-        }
-
-        let elapsedSeconds = max(0, Int(date.timeIntervalSince(startDate)))
-        if includesHours {
-            let hours = elapsedSeconds / 3_600
-            let minutes = (elapsedSeconds / 60) % 60
-            let seconds = elapsedSeconds % 60
-            return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
-        }
-
-        return String(format: "%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60)
     }
 
     private func rowHeightMultiplier(for row: Int) -> CGFloat {
@@ -675,6 +414,313 @@ struct SportTrackerView: View {
 
     private func cellLabel(for number: Int) -> String {
         SportTrackerCellCatalog.definition(for: number)?.label ?? ""
+    }
+}
+
+private struct GridNumbersControl: View {
+    @Binding var isVisible: Bool
+
+    var body: some View {
+        Button {
+            isVisible.toggle()
+        } label: {
+            Text("show numbrs")
+                .font(.system(size: 13, weight: .semibold))
+                .lineLimit(2)
+                .minimumScaleFactor(0.65)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 2)
+                .padding(.vertical, 1)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(Color.red, lineWidth: 2)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityValue(isVisible ? "Visible" : "Hidden")
+        .accessibilityHint("Toggles cell and row numbers")
+    }
+}
+
+private struct HeaderSelectionControl: View {
+    let cellNumber: Int
+    let label: String
+    @Binding var selection: Int?
+
+    var body: some View {
+        GeometryReader { cellGeometry in
+            let buttonInset: CGFloat = 4
+            let buttonHeight = min(cellGeometry.size.width, cellGeometry.size.height) / 2
+                - buttonInset
+
+            Button(action: toggleSelection) {
+                ZStack {
+                    Color.clear
+                    Text(label)
+                        .font(.title2.monospacedDigit())
+                        .foregroundStyle(.white)
+                }
+                .frame(
+                    width: cellGeometry.size.width - buttonInset * 2,
+                    height: buttonHeight
+                )
+                .contentShape(Rectangle())
+                .overlay {
+                    if selection == cellNumber {
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Color.green, lineWidth: 2)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(selection != nil && selection != cellNumber)
+            .accessibilityLabel(label)
+            .accessibilityValue(selection == cellNumber ? "Selected" : "Not selected")
+            .accessibilityHint(
+                selection == nil || selection == cellNumber
+                    ? "Toggles this option"
+                    : "Turn off the selected option first"
+            )
+            .position(
+                x: cellGeometry.size.width / 2,
+                y: buttonInset + buttonHeight / 2
+            )
+        }
+    }
+
+    private func toggleSelection() {
+        if selection == cellNumber {
+            selection = nil
+        } else if selection == nil {
+            selection = cellNumber
+        }
+    }
+}
+
+private struct SoundIntervalControl: View {
+    let minutes: Int
+    let onIncrement: () -> Void
+    let onDecrement: () -> Void
+
+    var body: some View {
+        ZStack {
+            Text(String(minutes))
+                .font(.system(size: 24, weight: .bold, design: .monospaced))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            GeometryReader { buttonGeometry in
+                let spacing: CGFloat = 4
+                let buttonWidth = (buttonGeometry.size.width - spacing) / 2
+
+                HStack(spacing: spacing) {
+                    SportCounterButton(
+                        title: "+",
+                        backgroundOpacity: 0.1728,
+                        action: onIncrement
+                    )
+                    .frame(width: buttonWidth)
+
+                    SportCounterButton(title: "−", action: onDecrement)
+                        .frame(width: buttonWidth)
+                }
+            }
+            .frame(height: 23.66)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            .padding(.bottom, 3)
+        }
+    }
+}
+
+private struct ResetTimerControl: View {
+    let title: String
+    let startDate: Date?
+    let timerColor: Color
+    let onReset: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Button(action: onReset) {
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .lineLimit(1)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 4)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Color.red, lineWidth: 2)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            Divider()
+
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                Text(Self.timerText(at: context.date, since: startDate))
+                    .font(.system(size: 32.34, weight: .bold, design: .monospaced))
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
+                    .foregroundStyle(timerColor)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private static func timerText(at date: Date, since startDate: Date?) -> String {
+        guard let startDate else { return "00:00" }
+        let elapsedSeconds = max(0, Int(date.timeIntervalSince(startDate)))
+        return String(format: "%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60)
+    }
+}
+
+private struct VolumeProvisioningControl: View {
+    let percentage: Int
+    let isMaximumEnabled: Bool
+    let provisioningTimeRemaining: String
+    let onToggle: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Button(action: onToggle) {
+                Text("Volume \(percentage)%")
+                    .font(.system(size: 15, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 4)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(isMaximumEnabled ? Color.green : Color.red, lineWidth: 2)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .accessibilityLabel("iPhone sound volume")
+            .accessibilityValue(
+                "\(percentage) percent, maximum volume " + (isMaximumEnabled ? "on" : "off")
+            )
+            .accessibilityHint(
+                isMaximumEnabled
+                    ? "Restores the previous volume"
+                    : "Sets the volume to 100 percent"
+            )
+
+            Divider()
+
+            Text(provisioningTimeRemaining)
+                .font(.system(size: 21.02, weight: .semibold, design: .monospaced))
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .foregroundStyle(Color(red: 1.0, green: 0.65, blue: 0.82))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .accessibilityLabel("App time remaining, \(provisioningTimeRemaining)")
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+private struct ExerciseCellControl<Content: View>: View {
+    let preview: ExercisePreview?
+    let flashTrigger: UUID?
+    let onTap: () -> Void
+    let onHoldChanged: (ExercisePreview, Bool) -> Void
+    let content: Content
+
+    init(
+        preview: ExercisePreview?,
+        flashTrigger: UUID?,
+        onTap: @escaping () -> Void,
+        onHoldChanged: @escaping (ExercisePreview, Bool) -> Void,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.preview = preview
+        self.flashTrigger = flashTrigger
+        self.onTap = onTap
+        self.onHoldChanged = onHoldChanged
+        self.content = content()
+    }
+
+    var body: some View {
+        ZStack {
+            if let preview {
+                ExercisePressArea(
+                    onTap: onTap,
+                    onHoldChanged: { onHoldChanged(preview, $0) }
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                Button(action: onTap) {
+                    Color.clear
+                        .background(
+                            flashTrigger != nil
+                                ? Color(red: 0.45, green: 0.9, blue: 1.0).opacity(0.3)
+                                : Color.clear
+                        )
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+
+            CellColorFillEffect(trigger: flashTrigger)
+                .allowsHitTesting(false)
+
+            content
+                .allowsHitTesting(false)
+
+            if preview != nil {
+                Image(systemName: "eye")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                    .padding(6)
+                    .allowsHitTesting(false)
+            }
+
+            CellRippleEffect(trigger: flashTrigger)
+                .allowsHitTesting(false)
+            CellParticleBurstEffect(trigger: flashTrigger)
+                .allowsHitTesting(false)
+            CellCooldownRingEffect(trigger: flashTrigger)
+                .allowsHitTesting(false)
+        }
+    }
+}
+
+private struct SportCounterButton: View {
+    let title: String
+    var backgroundOpacity: Double?
+    let action: () -> Void
+
+    init(
+        title: String,
+        backgroundOpacity: Double? = nil,
+        action: @escaping () -> Void
+    ) {
+        self.title = title
+        self.backgroundOpacity = backgroundOpacity
+        self.action = action
+    }
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 13, weight: .bold))
+                .frame(maxWidth: .infinity)
+                .frame(height: 23.66)
+                .background(
+                    Color.black.opacity(backgroundOpacity ?? (title == "−" ? 0.1728 : 0.3))
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
+        .buttonStyle(.plain)
     }
 }
 
