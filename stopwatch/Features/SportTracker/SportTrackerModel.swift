@@ -51,8 +51,17 @@ final class SportTrackerModel: ObservableObject {
     private var didPlayOneMinuteSound = false
     private var notificationSchedulingTask: Task<Void, Never>?
     private var isNotificationSoundScheduled = false
+    private let persistenceEnabled: Bool
+    private let notificationSchedulingEnabled: Bool
 
-    init() {
+    init(
+        persistenceEnabled: Bool = true,
+        notificationSchedulingEnabled: Bool = true
+    ) {
+        self.persistenceEnabled = persistenceEnabled
+        self.notificationSchedulingEnabled = notificationSchedulingEnabled
+
+        guard persistenceEnabled else { return }
         guard let saved = PersistentAppState.load(SavedState.self, forKey: "sport-tracker")
         else { return }
 
@@ -133,6 +142,8 @@ final class SportTrackerModel: ObservableObject {
     }
 
     func incrementCounter(for cellNumber: Int, at now: Date = Date()) {
+        guard rightNumbers.indices.contains(cellNumber - 1) else { return }
+
         if Self.tappableCellNumbers.contains(cellNumber) {
             if let lastTapDate = lastCellTapDates[cellNumber],
                now.timeIntervalSince(lastTapDate) < 1 {
@@ -157,6 +168,7 @@ final class SportTrackerModel: ObservableObject {
     }
 
     func decrementCounter(for cellNumber: Int) {
+        guard rightNumbers.indices.contains(cellNumber - 1) else { return }
         guard rightNumbers[cellNumber - 1] > 0 else { return }
         rightNumbers[cellNumber - 1] -= 1
         saveState()
@@ -223,6 +235,7 @@ final class SportTrackerModel: ObservableObject {
     }
 
     private func scheduleTimerNotification(at now: Date = .now) {
+        guard notificationSchedulingEnabled else { return }
         guard let timerStartDate else {
             cancelTimerNotification()
             return
@@ -291,6 +304,7 @@ final class SportTrackerModel: ObservableObject {
     }
 
     private func cancelTimerNotification() {
+        guard notificationSchedulingEnabled else { return }
         notificationSchedulingTask?.cancel()
         notificationSchedulingTask = nil
         isNotificationSoundScheduled = false
@@ -316,6 +330,7 @@ final class SportTrackerModel: ObservableObject {
     }
 
     private func saveState() {
+        guard persistenceEnabled else { return }
         PersistentAppState.save(
             SavedState(
                 layoutVersion: 2,
