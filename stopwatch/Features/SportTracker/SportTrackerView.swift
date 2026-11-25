@@ -41,7 +41,7 @@ struct SportTrackerView: View {
     var body: some View {
         GeometryReader { geometry in
             let standardRowHeight = geometry.size.height / 7.65375
-            let displayedRows = [0, 1, 2, 3, 4, 6, 7, 9, 10, 11]
+            let displayedRows = SportTrackerCellCatalog.displayedRows
 
             Grid(horizontalSpacing: 0, verticalSpacing: 0) {
                 ForEach(Array(displayedRows.enumerated()), id: \.offset) { rowEntry in
@@ -85,10 +85,7 @@ struct SportTrackerView: View {
                                         .allowsHitTesting(false)
                                 }
 
-                                if cellNumber == 25 || cellNumber == 26
-                                    || cellNumber == 27 || cellNumber == 28
-                                    || cellNumber == 29 || cellNumber == 30
-                                    || cellNumber == 31 || cellNumber == 32 {
+                                if SportTrackerCellCatalog.datedCellNumbers.contains(cellNumber) {
                                     Button {
                                         model.markDatedLabel(in: cellNumber)
                                     } label: {
@@ -513,75 +510,7 @@ struct SportTrackerView: View {
     }
 
     private func exercisePreview(for cellNumber: Int) -> ExercisePreview? {
-        switch cellNumber {
-        case 10:
-            ExercisePreview(
-                images: [
-                    ExercisePreviewImage(
-                        assetName: "up-back-01",
-                        fileName: "up-back-01.jpg"
-                    ),
-                    ExercisePreviewImage(assetName: "up-back-02", fileName: "up-back-02.jpg")
-                ]
-            )
-        case 11:
-            ExercisePreview(
-                images: [
-                    ExercisePreviewImage(
-                        assetName: "middle-back-45gr-01",
-                        fileName: "middle-back-45gr-01.jpg"
-                    )
-                ]
-            )
-        case 12:
-            ExercisePreview(
-                images: [
-                    ExercisePreviewImage(
-                        assetName: "down-back-01",
-                        fileName: "down-back-01.jpg"
-                    )
-                ]
-            )
-        case 15:
-            ExercisePreview(
-                images: [
-                    ExercisePreviewImage(
-                        assetName: "middle-biceps-01",
-                        fileName: "middle-biceps-01.jpg"
-                    )
-                ]
-            )
-        case 38:
-            ExercisePreview(
-                images: [
-                    ExercisePreviewImage(assetName: "up-chest-01", fileName: "up-chest-01.jpg"),
-                    ExercisePreviewImage(assetName: "up-chest-02", fileName: "up-chest-02.jpg")
-                ]
-            )
-        case 39:
-            ExercisePreview(
-                images: [
-                    ExercisePreviewImage(assetName: "grud-middle", fileName: "grud-middle.JPG")
-                ]
-            )
-        case 40:
-            ExercisePreview(
-                images: [
-                    ExercisePreviewImage(
-                        assetName: "down-chest-01",
-                        fileName: "down-chest-01.jpg"
-                    )
-                ]
-            )
-        case 43:
-            ExercisePreview(
-                images: [
-                    ExercisePreviewImage(assetName: "triceps-leza", fileName: "triceps-leza.JPG")
-                ]
-            )
-        default:
-            nil
-        }
+        SportTrackerCellCatalog.definition(for: cellNumber)?.exercisePreview
     }
 
     private func counterButton(
@@ -665,61 +594,31 @@ struct SportTrackerView: View {
 
     @ViewBuilder
     private func cellContent(for number: Int) -> some View {
-        if number == 25 || number == 26 || number == 27 || number == 28
-            || number == 29 || number == 30 || number == 31 || number == 32 {
+        if SportTrackerCellCatalog.datedCellNumbers.contains(number) {
             datedLabelText(for: number)
                 .font(.title2)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-        } else if number == 17 || number == 45 {
+        } else if let direction = SportTrackerCellCatalog.definition(for: number)?.legPalmDirection {
             VStack(spacing: 0) {
                 Text("ноги,")
                     .font(.title2)
-                if number == 45 {
-                    Text("ладонь\nвверх")
-                        .font(.system(size: 16.5))
-                        .foregroundStyle(.yellow)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                } else {
-                    Text("ладонь\nвниз")
-                        .font(.system(size: 16.5))
-                        .foregroundStyle(.yellow)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                }
+                Text("ладонь\n\(direction)")
+                    .font(.system(size: 16.5))
+                    .foregroundStyle(.yellow)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let label = [
-            10: "подтягивания",
-            11: "сверху под 45гр",
-            12: "сидя узкий хват",
-            14: "молотковый хват",
-            15: "сидя снизу-вверх",
-            16: "z-гриф",
-            18: "плечи вверх",
-            19: "развод",
-            20: "свод",
-            25: "5L",
-            38: "вверх",
-            39: "сводящие, не толкающие",
-            40: "отжим на брусьях",
-            42: "вверх",
-            43: "из положения лежа на спине",
-            44: "вниз",
-            46: "вперед",
-            47: "приседы",
-            48: "назад",
-        ][number] {
+        } else if let definition = SportTrackerCellCatalog.definition(for: number),
+                  definition.isTappable,
+                  !definition.labelLines.isEmpty {
             VStack(spacing: -7) {
-                ForEach(labelLines(for: number, label: label), id: \.self) { line in
+                ForEach(definition.labelLines, id: \.self) { line in
                     Text(line)
                         .font(
-                            number == 39 || number == 43
-                                ? .system(size: 18.634)
-                                : number == 12 || number == 15
-                                    ? .system(size: 21.28896)
-                                    : .title2
+                            definition.labelFontSize.map { .system(size: $0) }
+                                ?? .title2
                         )
                         .lineLimit(1)
                 }
@@ -732,20 +631,16 @@ struct SportTrackerView: View {
     }
 
     private func datedLabelText(for cellNumber: Int) -> Text {
-        let label: String
+        let label = SportTrackerCellCatalog.definition(for: cellNumber)?.datedLabel ?? ""
         let date: Date?
 
         if cellNumber == 28 || cellNumber == 32 {
-            label = "6H"
             date = cellNumber == 28 ? model.sixHDate28 : model.sixHDate32
         } else if cellNumber == 27 || cellNumber == 31 {
-            label = "6L"
             date = cellNumber == 27 ? model.sixLDate27 : model.sixLDate31
         } else if cellNumber == 26 || cellNumber == 30 {
-            label = "5H"
             date = cellNumber == 26 ? model.fiveHDate26 : model.fiveHDate30
         } else {
-            label = "5L"
             date = cellNumber == 25 ? model.fiveLDate : model.fiveLDate29
         }
 
@@ -765,21 +660,6 @@ struct SportTrackerView: View {
             .foregroundColor(Color(red: 0.55, green: 1.0, blue: 0.55))
     }
 
-    private func labelLines(for number: Int, label: String) -> [String] {
-        switch number {
-        case 10: return ["подтяги-", "вания"]
-        case 11: return ["сверху", "под 45гр"]
-        case 12: return ["сидя", "узкий", "хват"]
-        case 14: return ["молотко-", "вый хват"]
-        case 15: return ["сидя", "снизу-", "вверх"]
-        case 18: return ["плечи", "вверх"]
-        case 39: return ["сводящие,", "не тол-", "кающие"]
-        case 40: return ["отжим на", "брусьях"]
-        case 43: return ["из положе-", "ния лежа", "на спине"]
-        default: return [label]
-        }
-    }
-
     private func columnColor(for column: Int, row: Int) -> Color {
         guard row != 0, row != 1, row != 6, row != 7 else {
             return backgroundColor
@@ -794,31 +674,8 @@ struct SportTrackerView: View {
     }
 
     private func cellLabel(for number: Int) -> String {
-        switch number {
-        case 1: ""
-        case 2: "Up"
-        case 3: "Middle"
-        case 4: "Down"
-        case 5...8, 25...36: ""
-        case 9: "спина"
-        case 13: "бицепс"
-        case 17: "ноги, ладонь вниз"
-        case 37: "грудь"
-        case 41: "трицепс"
-        case 45: "ноги, ладонь вверх"
-        default: ""
-        }
+        SportTrackerCellCatalog.definition(for: number)?.label ?? ""
     }
-}
-
-private struct ExercisePreview {
-    let images: [ExercisePreviewImage]
-}
-
-private struct ExercisePreviewImage: Identifiable {
-    var id: String { assetName }
-    let assetName: String
-    let fileName: String
 }
 
 private struct ExercisePressArea: UIViewRepresentable {

@@ -5,7 +5,6 @@ import UserNotifications
 
 @MainActor
 final class SportTrackerModel: ObservableObject {
-    private static let datedCellSequence = [25, 29, 26, 30, 27, 31, 28, 32]
     static let timerNotificationIdentifier = "sport-tracker-timer-threshold"
 
     private struct SavedState: Codable {
@@ -24,14 +23,7 @@ final class SportTrackerModel: ObservableObject {
         var sixHDate32: Date?
     }
 
-    static let tappableCellNumbers: Set<Int> = [
-        10, 11, 12,
-        14, 15, 16,
-        18, 19, 20,
-        38, 39, 40,
-        42, 43, 44,
-        46, 47, 48,
-    ]
+    static let tappableCellNumbers = SportTrackerCellCatalog.tappableCellNumbers
 
     @Published private(set) var rightNumbers = Array(repeating: 0, count: 48)
     @Published private(set) var soundIntervalMinutes = 2
@@ -198,16 +190,19 @@ final class SportTrackerModel: ObservableObject {
     }
 
     func canMarkDatedLabel(in cellNumber: Int) -> Bool {
-        Self.datedCellSequence.first(where: { datedLabelDate(in: $0) == nil }) == cellNumber
+        SportTrackerCellCatalog.datedCellSequence.first(where: {
+            datedLabelDate(in: $0) == nil
+        }) == cellNumber
     }
 
     func isCurrentDatedLabel(in cellNumber: Int) -> Bool {
-        let firstUnmarkedIndex = Self.datedCellSequence.firstIndex(where: {
+        let sequence = SportTrackerCellCatalog.datedCellSequence
+        let firstUnmarkedIndex = sequence.firstIndex(where: {
             datedLabelDate(in: $0) == nil
-        }) ?? Self.datedCellSequence.endIndex
+        }) ?? sequence.endIndex
 
-        guard firstUnmarkedIndex > Self.datedCellSequence.startIndex else { return false }
-        return Self.datedCellSequence[firstUnmarkedIndex - 1] == cellNumber
+        guard firstUnmarkedIndex > sequence.startIndex else { return false }
+        return sequence[firstUnmarkedIndex - 1] == cellNumber
     }
 
     func playSoundIfNeeded(at now: Date) {
