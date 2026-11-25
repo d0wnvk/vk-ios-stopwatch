@@ -371,17 +371,7 @@ struct SportTrackerView: View {
 
     private func datedLabelText(for cellNumber: Int) -> Text {
         let label = SportTrackerCellCatalog.definition(for: cellNumber)?.datedLabel ?? ""
-        let date: Date?
-
-        if cellNumber == 28 || cellNumber == 32 {
-            date = cellNumber == 28 ? model.sixHDate28 : model.sixHDate32
-        } else if cellNumber == 27 || cellNumber == 31 {
-            date = cellNumber == 27 ? model.sixLDate27 : model.sixLDate31
-        } else if cellNumber == 26 || cellNumber == 30 {
-            date = cellNumber == 26 ? model.fiveHDate26 : model.fiveHDate30
-        } else {
-            date = cellNumber == 25 ? model.fiveLDate : model.fiveLDate29
-        }
+        let date = model.datedLabelDate(in: cellNumber)
 
         if let date {
             let text = Text(label + " " + Self.fiveLDateFormatter.string(from: date))

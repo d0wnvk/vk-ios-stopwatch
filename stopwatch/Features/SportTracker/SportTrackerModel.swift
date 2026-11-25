@@ -3,6 +3,26 @@ import Combine
 import Foundation
 import UserNotifications
 
+enum SportTrackerDatedCell: Int, CaseIterable, Codable {
+    case fiveL25 = 25
+    case fiveH26 = 26
+    case sixL27 = 27
+    case sixH28 = 28
+    case fiveL29 = 29
+    case fiveH30 = 30
+    case sixL31 = 31
+    case sixH32 = 32
+}
+
+struct SportTrackerDatedState: Codable, Equatable {
+    private var dates: [SportTrackerDatedCell: Date] = [:]
+
+    subscript(cell: SportTrackerDatedCell) -> Date? {
+        get { dates[cell] }
+        set { dates[cell] = newValue }
+    }
+}
+
 @MainActor
 final class SportTrackerModel: ObservableObject {
     static let timerNotificationIdentifier = "sport-tracker-timer-threshold"
@@ -13,6 +33,9 @@ final class SportTrackerModel: ObservableObject {
         var soundIntervalMinutes: Int
         var timerStartDate: Date?
         var independentTimerStartDate: Date?
+        var datedState: SportTrackerDatedState?
+
+        // Kept for decoding state saved before dated labels became typed state.
         var fiveLDate: Date?
         var fiveLDate29: Date?
         var fiveHDate26: Date?
@@ -29,14 +52,7 @@ final class SportTrackerModel: ObservableObject {
     @Published private(set) var soundIntervalMinutes = 2
     @Published private(set) var timerStartDate: Date?
     @Published private(set) var independentTimerStartDate: Date?
-    @Published private(set) var fiveLDate: Date?
-    @Published private(set) var fiveLDate29: Date?
-    @Published private(set) var fiveHDate26: Date?
-    @Published private(set) var fiveHDate30: Date?
-    @Published private(set) var sixLDate27: Date?
-    @Published private(set) var sixLDate31: Date?
-    @Published private(set) var sixHDate28: Date?
-    @Published private(set) var sixHDate32: Date?
+    @Published private(set) var datedState = SportTrackerDatedState()
     @Published private(set) var flashingCells: [Int: UUID] = [:]
 
     private var lastCellTapDates: [Int: Date] = [:]
@@ -76,14 +92,7 @@ final class SportTrackerModel: ObservableObject {
         soundIntervalMinutes = max(1, saved.soundIntervalMinutes)
         timerStartDate = saved.timerStartDate
         independentTimerStartDate = saved.independentTimerStartDate
-        fiveLDate = saved.fiveLDate
-        fiveLDate29 = saved.fiveLDate29
-        fiveHDate26 = saved.fiveHDate26
-        fiveHDate30 = saved.fiveHDate30
-        sixLDate27 = saved.sixLDate27
-        sixLDate31 = saved.sixLDate31
-        sixHDate28 = saved.sixHDate28
-        sixHDate32 = saved.sixHDate32
+        datedState = saved.datedState ?? Self.migrateLegacyDatedState(saved)
 
         if timerStartDate != nil {
             scheduleTimerNotification()
@@ -107,14 +116,7 @@ final class SportTrackerModel: ObservableObject {
 
     func resetDatedLabels() {
         rightNumbers.replaceSubrange(24..<32, with: repeatElement(0, count: 8))
-        fiveLDate = nil
-        fiveLDate29 = nil
-        fiveHDate26 = nil
-        fiveHDate30 = nil
-        sixLDate27 = nil
-        sixLDate31 = nil
-        sixHDate28 = nil
-        sixHDate32 = nil
+        datedState = SportTrackerDatedState()
         saveState()
     }
 
@@ -167,26 +169,17 @@ final class SportTrackerModel: ObservableObject {
     }
 
     func markDatedLabel(in cellNumber: Int, at date: Date = Date()) {
-        guard canMarkDatedLabel(in: cellNumber) else { return }
+        guard canMarkDatedLabel(in: cellNumber),
+              let cell = SportTrackerDatedCell(rawValue: cellNumber)
+        else { return }
 
-        if cellNumber == 25 {
-            fiveLDate = date
-        } else if cellNumber == 26 {
-            fiveHDate26 = date
-        } else if cellNumber == 29 {
-            fiveLDate29 = date
-        } else if cellNumber == 30 {
-            fiveHDate30 = date
-        } else if cellNumber == 27 {
-            sixLDate27 = date
-        } else if cellNumber == 31 {
-            sixLDate31 = date
-        } else if cellNumber == 28 {
-            sixHDate28 = date
-        } else if cellNumber == 32 {
-            sixHDate32 = date
-        }
+        datedState[cell] = date
         saveState()
+    }
+
+    func datedLabelDate(in cellNumber: Int) -> Date? {
+        guard let cell = SportTrackerDatedCell(rawValue: cellNumber) else { return nil }
+        return datedState[cell]
     }
 
     func canMarkDatedLabel(in cellNumber: Int) -> Bool {
@@ -333,31 +326,31 @@ final class SportTrackerModel: ObservableObject {
                 soundIntervalMinutes: soundIntervalMinutes,
                 timerStartDate: timerStartDate,
                 independentTimerStartDate: independentTimerStartDate,
-                fiveLDate: fiveLDate,
-                fiveLDate29: fiveLDate29,
-                fiveHDate26: fiveHDate26,
-                fiveHDate30: fiveHDate30,
-                sixLDate27: sixLDate27,
-                sixLDate31: sixLDate31,
-                sixHDate28: sixHDate28,
-                sixHDate32: sixHDate32
+                datedState: datedState,
+                fiveLDate: nil,
+                fiveLDate29: nil,
+                fiveHDate26: nil,
+                fiveHDate30: nil,
+                sixLDate27: nil,
+                sixLDate31: nil,
+                sixHDate28: nil,
+                sixHDate32: nil
             ),
             forKey: "sport-tracker"
         )
     }
 
-    private func datedLabelDate(in cellNumber: Int) -> Date? {
-        switch cellNumber {
-        case 25: fiveLDate
-        case 26: fiveHDate26
-        case 27: sixLDate27
-        case 28: sixHDate28
-        case 29: fiveLDate29
-        case 30: fiveHDate30
-        case 31: sixLDate31
-        case 32: sixHDate32
-        default: nil
-        }
+    private static func migrateLegacyDatedState(_ saved: SavedState) -> SportTrackerDatedState {
+        var state = SportTrackerDatedState()
+        state[.fiveL25] = saved.fiveLDate
+        state[.fiveH26] = saved.fiveHDate26
+        state[.sixL27] = saved.sixLDate27
+        state[.sixH28] = saved.sixHDate28
+        state[.fiveL29] = saved.fiveLDate29
+        state[.fiveH30] = saved.fiveHDate30
+        state[.sixL31] = saved.sixLDate31
+        state[.sixH32] = saved.sixHDate32
+        return state
     }
 }
 

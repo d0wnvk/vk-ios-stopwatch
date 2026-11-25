@@ -84,10 +84,10 @@ final class SportTrackerModelTests: XCTestCase {
         XCTAssertFalse(model.canMarkDatedLabel(in: 29))
 
         model.markDatedLabel(in: 29, at: date)
-        XCTAssertNil(model.fiveLDate29)
+        XCTAssertNil(model.datedState[.fiveL29])
 
         model.markDatedLabel(in: 25, at: date)
-        XCTAssertEqual(model.fiveLDate, date)
+        XCTAssertEqual(model.datedState[.fiveL25], date)
         XCTAssertTrue(model.canMarkDatedLabel(in: 29))
         XCTAssertTrue(model.isCurrentDatedLabel(in: 25))
     }
@@ -100,7 +100,7 @@ final class SportTrackerModelTests: XCTestCase {
 
         model.resetAll()
 
-        XCTAssertEqual(model.fiveLDate, date)
+        XCTAssertEqual(model.datedState[.fiveL25], date)
         XCTAssertEqual(model.rightNumbers[9], 0)
         XCTAssertNil(model.timerStartDate)
         XCTAssertNil(model.independentTimerStartDate)
@@ -113,7 +113,22 @@ final class SportTrackerModelTests: XCTestCase {
 
         model.resetDatedLabels()
 
-        XCTAssertNil(model.fiveLDate)
+        XCTAssertNil(model.datedState[.fiveL25])
         XCTAssertTrue(model.canMarkDatedLabel(in: 25))
+    }
+
+    func testDatedStateCodableRoundTrip() throws {
+        var state = SportTrackerDatedState()
+        let firstDate = Date(timeIntervalSince1970: 2_000)
+        let secondDate = Date(timeIntervalSince1970: 3_000)
+        state[.fiveL25] = firstDate
+        state[.sixH32] = secondDate
+
+        let encoded = try JSONEncoder().encode(state)
+        let decoded = try JSONDecoder().decode(SportTrackerDatedState.self, from: encoded)
+
+        XCTAssertEqual(decoded[.fiveL25], firstDate)
+        XCTAssertEqual(decoded[.sixH32], secondDate)
+        XCTAssertNil(decoded[.fiveH26])
     }
 }
